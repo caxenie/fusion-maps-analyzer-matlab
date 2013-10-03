@@ -1,20 +1,18 @@
-% Fusion network for testing simple algebraic and temporal relationships
+%% Fusion network for testing simple algebraic and temporal relationships
 close all;
 clear all;
 clc;
 
-% load data 
-input_samples = 5;
-maps = 6;                       % number of maps
-input_data = rand([input_samples, maps]);
-m1_sensor = input_data(:, 1);
-m2_sensor = input_data(:, 2);
-m3_sensor = input_data(:, 3);
-m4_sensor = input_data(:, 4);
-m5_sensor = input_data(:, 5);
-m6_sensor = input_data(:, 6);
+% prepare sensor data  to fed to the net
+run_iters = 320000;
+maps      = 6;                       % number of maps
+m1_sensor = rand;
+m2_sensor = rand;
+m3_sensor = rand;
+m4_sensor = rand;
+m5_sensor = rand;
+m6_sensor = rand;
 
-%% TODO generate some datasets with data in [-1 1]
 
 
 %% Initialization 
@@ -22,13 +20,18 @@ rand_update_rule = 1;           % id of the current update rule
 update_rules = 14;              % possible update rules - depends on net topology
 rules_ids = 1:update_rules;     % individual id for each rule
 convergence_steps = 1;          % convergence steps counter
-data_show_freq = 10000;           % freq to show data point to net
-sim_points = length(input_data)*data_show_freq;
+sim_points = run_iters;
+% clamp connection time
+clamp1_on = 20000;
+clamp2_on = 8000;
+clamp1_off = 300000;
+clamp2_off = 18000;
+clamp_value = 1;
 
 % sensor connection state - connected to net / not
-sensor_connected = ones(1, maps);
+sensor_connected = zeros(1, maps);
 
-% network iterator 
+% network iterator  
 net_iter = 1;
 
 % init maps and indices 
@@ -54,7 +57,7 @@ em5 = zeros(1, length(m5_links)); em6 = zeros(1, length(m6_links));
 maps_nr = maps;
 error_nr = update_rules;
 lrates_nr = update_rules;
-net_data = zeros(sim_points, maps_nr+error_nr+lrates_nr);
+net_data = zeros(sim_points, maps_nr+error_nr);
 
 % init learning rates 
 ETA = 0.002;
@@ -75,11 +78,10 @@ etam6 = ETA*ones(sim_points, length(m6_links));
 
 while(1)
     % check for end of simulation 
-    if(net_iter == length(input_data))
-        if (net_iter*data_show_freq == convergence_steps)
+    if (convergence_steps == run_iters)
             break;
-        end;
     end;
+    
     % shuffle maps ids for update
     idx = update_rules;
     while idx>1
@@ -212,22 +214,317 @@ while(1)
     net_data(convergence_steps, 19) = em6(1);
     net_data(convergence_steps, 20) = em6(2);
     
-    % learning rates - fixed for the moment
-    
     net_data(convergence_steps, 21) = convergence_steps;
-    
-    % check new sensor data presentation
-    if(convergence_steps == (net_iter+1)*data_show_freq - 1)
-        net_iter = net_iter + 1;
+       
+    % TODO learning rates - fixed for the moment
+ 
+    % sensor values clamping 
+    switch(convergence_steps)
+        case clamp1_on
+            sensor_connected(m1_id)  = 1;
+            m1_sensor = clamp_value;
+        case clamp1_off
+            sensor_connected(m1_id)  = 0;
+        case clamp2_on
+            sensor_connected(m2_id)  = 1;
+            m2_sensor = -clamp_value;
+        case clamp2_off
+            sensor_connected(m2_id) = 0;
     end
+    
     convergence_steps = convergence_steps + 1;
 end
 
 %% Visualization 
 figure(1);
-subplot(3,1,1);
-plot(net_data(:,1), '.r');
-subplot(3,1,2);
-plot(net_data(:,2), '.b');
-subplot(3,1,3);
-plot(net_data(:,1), net_data(:,2));
+% ---------------- R1 ----------------------
+subplot(4, 3, 1);
+plot(net_data(:, 21), net_data(:, 1), '.r');
+grid on; title('M1 map values');
+
+subplot(4, 3, 4);
+plot(net_data(:, 21), net_data(:, 2), '.b');
+grid on; title('M2 map values');
+
+subplot(4, 3, 10);
+plot(net_data(:, 2), net_data(:, 1), '.k');
+grid on; title('M1 map Vs. M2 map values');
+% -------------------------------------------
+
+% ---------------- R2 ----------------------
+subplot(4, 3, 2);
+plot(net_data(:, 21), net_data(:, 2), '.r');
+grid on; title('M2 map values');
+
+subplot(4, 3, 5);
+plot(net_data(:, 21), net_data(:, 3), '.b');
+grid on; title('M3 map values');
+
+subplot(4, 3, 8);
+plot(net_data(:, 21), net_data(:, 4), '.g');
+grid on; title('M4 map values');
+
+subplot(4, 3, 11);
+plot3(net_data(:, 2), net_data(:, 3), net_data(:, 4));
+grid on; title('M2 map Vs. M3 map values Vs. M4 values');
+% -------------------------------------------
+
+% ---------------- R2 ----------------------
+subplot(4, 3, 3);
+plot(net_data(:, 21), net_data(:, 4), '.r');
+grid on; title('M2 map values');
+
+subplot(4, 3, 6);
+plot(net_data(:, 21), net_data(:, 5), '.b');
+grid on; title('M3 map values');
+
+subplot(4, 3, 9);
+plot(net_data(:, 21), net_data(:, 6), '.g');
+grid on; title('M4 map values');
+
+subplot(4, 3, 12);
+plot3(net_data(:, 4), net_data(:, 5), net_data(:, 6));
+grid on; title('M4 map Vs. M5 map values Vs. M6 values');
+% -------------------------------------------
+
+
+% % fill in the data 
+% fusion_analyzer_data = net_data;
+% %--------------------------------------------------------------------------------------------------------
+% fig2Handle = figure(2);
+% set(fig2Handle, 'Position', [100, 100, 600, 1000]);
+% %-------------------------
+% subplot(3,1,1)
+% % axis control and adjustment
+% [ax1] = axescheck(fusion_analyzer_data(:,20), fusion_analyzer_data(:,1));
+% ax1 = newplot(ax1);
+% set(ax1,'XGrid','on');
+% set(ax1,'YGrid','on');
+% if ~ishold(ax1)
+%   [minx1,maxx1] = minmax(fusion_analyzer_data(:,20));
+%   [miny1,maxy1] = minmax(fusion_analyzer_data(:,1));
+%   axis(ax1,[minx1 maxx1 miny1 maxy1])
+% end
+% title('Maps values during simulation');
+% ylabel('Map 1 values')
+% xlabel('Data points')
+% hc1 =  line('parent',ax1, 'linestyle','-','erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,1));
+% ha1 = line('parent',ax1,'linestyle','-','erase','none','xdata',[],'ydata',[]);
+% %-------------------------
+% subplot(3,1,2)
+% % axis control and adjustment
+% [ax2] = axescheck(fusion_analyzer_data(:,20), fusion_analyzer_data(:,2));
+% ax2 = newplot(ax2);
+% set(ax2,'XGrid','on');
+% set(ax2,'YGrid','on');
+% if ~ishold(ax2)
+%   [minx2,maxx2] = minmax(fusion_analyzer_data(:,20));
+%   [miny2,maxy2] = minmax(fusion_analyzer_data(:,2));
+%   axis(ax2,[minx2 maxx2 miny2 maxy2])
+% end
+% ylabel('Map 2 values')
+% xlabel('Data points')
+% hc2 =  line('parent',ax2,'linestyle','-','erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,2));
+% ha2 = line('parent',ax2,'linestyle','-','erase','none','xdata',[],'ydata',[]);
+% %-------------------------
+% subplot(3,1,3)
+% % axis control and adjustment
+% [ax3] = axescheck(fusion_analyzer_data(:,1), fusion_analyzer_data(:,2));
+% ax3 = newplot(ax3);
+% if ~ishold(ax3)
+%   [minx3,maxx3] = minmax(fusion_analyzer_data(:,1));
+%   [miny3,maxy3] = minmax(fusion_analyzer_data(:,2));
+%   axis(ax3,[minx3 maxx3 miny3 maxy3])
+% end
+% t = -1.0:1.0;
+% plot(t, 3*t, '-m');
+% set(ax3,'XGrid','on');
+% set(ax3,'YGrid','on');
+% hc3 =  line('parent',ax3,'linestyle','-','erase','xor','xdata',fusion_analyzer_data(1,1),'ydata',fusion_analyzer_data(1,2));
+% ha3 = line('parent',ax3,'linestyle','-','erase','none','xdata',[],'ydata',[]);
+% title('M2 dependency on M1');
+% xlabel('M1 values');
+% ylabel('M2 values');
+% % small pause to start recording with external device
+% pause(5); % s
+% % dynamic plot simulataneously in all subplots
+% for i=2:length(fusion_analyzer_data(:,20))
+%     j = i-1:i;
+%     set(hc1,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,1));
+%     set(ha1,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,1));
+%     set(hc2,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,2));
+%     set(ha2,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,2));
+%     set(hc3,'xdata', fusion_analyzer_data(i,1), 'ydata', fusion_analyzer_data(i,2));
+%     set(ha3,'xdata', fusion_analyzer_data(j,1), 'ydata', fusion_analyzer_data(j,2));
+%     drawnow;
+% end
+% 
+% %--------------------------------------------------------------------------------------------------------
+% fig3Handle = figure(3);
+% set(fig3Handle, 'Position', [900, 900, 600, 1200]);
+% subplot(4,1,1)
+% % axis control and adjustment
+% [ax4] = axescheck(fusion_analyzer_data(:,20), fusion_analyzer_data(:,3));
+% ax4 = newplot(ax4);
+% set(ax4,'XGrid','on');
+% set(ax4,'YGrid','on');
+% if ~ishold(ax4)
+%   [minx4,maxx4] = minmax(fusion_analyzer_data(:,20));
+%   [miny4,maxy4] = minmax(fusion_analyzer_data(:,3));
+%   axis(ax4,[minx4 maxx4 miny4 maxy4])
+% end
+% title('Maps values during simulation');
+% hc4 =  line('parent',ax4, 'linestyle','-','erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,3));
+% ha4 = line('parent',ax4,'linestyle','-','erase','none','xdata',[],'ydata',[]);
+% ylabel('Map 3 values')
+% xlabel('Data points')
+% 
+% %-------------
+% subplot(4,1,2)
+% % axis control and adjustment
+% [ax5] = axescheck(fusion_analyzer_data(:,20), fusion_analyzer_data(:,4));
+% ax5 = newplot(ax5);
+% set(ax5,'XGrid','on');
+% set(ax5,'YGrid','on');
+% if ~ishold(ax5)
+%   [minx5,maxx5] = minmax(fusion_analyzer_data(:,20));
+%   [miny5,maxy5] = minmax(fusion_analyzer_data(:,4));
+%   axis(ax5,[minx5 maxx5 miny5 maxy5])
+% end
+% hc5 =  line('parent',ax5, 'linestyle','-','erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,4));
+% ha5 = line('parent',ax5,'linestyle','-','erase','none','xdata',[],'ydata',[]);
+% ylabel('Map 4 values')
+% xlabel('Data points')
+% %-------------
+% subplot(4,1,3)
+% % axis control and adjustment
+% [ax6] = axescheck(fusion_analyzer_data(:,20), fusion_analyzer_data(:,5));
+% ax6 = newplot(ax6);
+% set(ax6,'XGrid','on');
+% set(ax6,'YGrid','on');
+% if ~ishold(ax6)
+%   [minx6,maxx6] = minmax(fusion_analyzer_data(:,20));
+%   [miny6,maxy6] = minmax(fusion_analyzer_data(:,5));
+%   axis(ax6,[minx6 maxx6 miny6 maxy6])
+% end
+% hc6 = line('parent',ax6, 'linestyle','-','erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,5));
+% ha6 = line('parent',ax6,'linestyle','-','erase','none','xdata',[],'ydata',[]);
+% ylabel('Map 5 values')
+% xlabel('Data points')
+% %------------
+% subplot(4,1,4)
+% % axis control and adjustment
+% [ax7] = axescheck(fusion_analyzer_data(:,20), fusion_analyzer_data(:,6));
+% ax7 = newplot(ax7);
+% set(ax7,'XGrid','on');
+% set(ax7,'YGrid','on');
+% if ~ishold(ax7)
+%   [minx7,maxx7] = minmax(fusion_analyzer_data(:,20));
+%   [miny7,maxy7] = minmax(fusion_analyzer_data(:,6));
+%   axis(ax7,[minx7 maxx7 miny7 maxy7])
+% end
+% hc7 =  line('parent',ax7, 'linestyle','-','erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,6));
+% ha7 = line('parent',ax7,'linestyle','-','erase','none','xdata',[],'ydata',[]);
+% ylabel('Map 6 values')
+% xlabel('Data points')
+% % small pause to start recording with external device
+% pause(5); % s
+% % loop and dynamically shouw map convergence
+% for i=2:length(fusion_analyzer_data(:,20))
+%     j = i-1:i;
+%     set(hc4,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,3));
+%     set(ha4,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,3));
+%     set(hc5,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,4));
+%     set(ha5,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,4));
+%     set(hc6,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,5));
+%     set(ha6,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,5));
+%     set(hc7,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,6));
+%     set(ha7,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,6));
+%     drawnow;
+% end
+% 
+% %--------------------------------------------------------------------------------------------------------
+% % per relation errors
+% % first relation between M1 and M2
+% figure(3);
+% subplot(2,1,1)
+% plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,8))
+% ylabel('Map 1 error to R1')
+% xlabel('Data points')
+% grid on
+% subplot(2,1,2);
+% plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,10));
+% ylabel('Map 2 error to R1');
+% xlabel('Data points');
+% grid on
+% %--------------------------------------------------------------------------------------------------------
+% % second relationship between M2, M3 and M4
+% figure(4);
+% subplot(3,1,1)
+% plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,11))
+% ylabel('Map 2 error to R2');
+% xlabel('Data points');
+% grid on;
+% subplot(3,1,2)
+% plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,13))
+% ylabel('Map 3 error to R2');
+% xlabel('Data points');
+% grid on;
+% subplot(3,1,3)
+% plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,15))
+% ylabel('Map 4 error to R2');
+% xlabel('Data points');
+% grid on;
+% %--------------------------------------------------------------------------------------------------------
+% % third relationship between M4, M5, M6
+% figure(5);
+% subplot(3,1,1)
+% plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,16))
+% ylabel('Map 4 error to R3')
+% xlabel('Data points')
+% grid on
+% subplot(3,1,2)
+% plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,18))
+% ylabel('Map 5 error to R3')
+% xlabel('Data points')
+% grid on
+% subplot(3,1,3)
+% plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,20))
+% ylabel('Map 6 error to R3')
+% xlabel('Data points')
+% grid on
+% %--------------------------------------------------------------------------------------------------------
+% % analize the first relationship R1: M2 = 3*M1
+% % analize the (M1, M2) dependency 
+% figure(6);
+% plot(fusion_analyzer_data(:,20), 3*fusion_analyzer_data(:,1));
+% hold on;
+% plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,2), '-r');
+% title('The dependency between M1 and M2');
+% grid on;
+% legend('3*M1 data', 'M2 data');
+% xlabel('Data points');
+% 
+% %--------------------------------------------------------------------------------------------------------
+% % analize the second relationship R2: M3 = M2*M4
+% % analize the (M2, M3, M4) dependency 
+% figure(7);
+% plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,2).*fusion_analyzer_data(:,4));
+% hold on;
+% plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,3), '-r');
+% title('The dependency between M2, M3, and M4');
+% legend('M2*M4 data', 'M3 data');
+% grid on;
+% xlabel('Data points');
+% 
+% %--------------------------------------------------------------------------------------------------------
+% % analize the second relationship R3: M4 = M5 + 2*M6
+% % analize the (M4, M5, M6) dependency 
+% figure(8);
+% plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,5)+(2*fusion_analyzer_data(:,6)));
+% hold on;
+% plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,4), '-r');
+% title('The dependency between M4, M5, and M6');
+% legend('M5+2*M6 data', 'M4 data');
+% grid on;
+% xlabel('Data points');  
