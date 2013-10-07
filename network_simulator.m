@@ -57,8 +57,10 @@ lrates_nr = update_rules;
 net_data = zeros(sim_points, maps_nr+error_nr);
 
 % init learning rates
+% bounds
 ETA = 0.002;
-ETAH = 0.02;
+ETAH = 10*ETA;
+% init
 etam1 = ETA*ones(sim_points, length(m1_links));
 etam2 = ETA*ones(sim_points, length(m2_links));
 etam3 = ETA*ones(sim_points, length(m3_links));
@@ -195,7 +197,33 @@ while(1)
         em6(2) = m6 - ((m4 - m5)/2);
     end
     
-    % write data to net struct
+    %% learning rates adaptation and clamping
+    for i=1:length(m1_links)
+        etam1(convergence_steps, m1_links(i)) = update_learning_rate(em1, m1_links(i), ETA, 'divisive');
+        etam1(convergence_steps, m1_links(i)) = clamp(etam1(convergence_steps, m1_links(i)), ETAH);
+    end
+    for i=1:length(m2_links)
+        etam2(convergence_steps, m2_links(i)) = update_learning_rate(em2, m2_links(i), ETA, 'divisive');
+        etam2(convergence_steps, m2_links(i)) = clamp(etam2(convergence_steps, m2_links(i)), ETAH);
+    end
+    for i=1:length(m3_links)
+        etam3(convergence_steps, m3_links(i)) = update_learning_rate(em3, m3_links(i), ETA, 'divisive');
+        etam3(convergence_steps, m3_links(i)) = clamp(etam3(convergence_steps, m3_links(i)), ETAH);
+    end
+    for i=1:length(m4_links)
+        etam4(convergence_steps, m4_links(i)) = update_learning_rate(em4, m4_links(i), ETA, 'divisive');
+        etam4(convergence_steps, m4_links(i)) = clamp(etam4(convergence_steps, m4_links(i)), ETAH);
+    end
+    for i=1:length(m5_links)
+        etam5(convergence_steps, m5_links(i)) = update_learning_rate(em5, m5_links(i), ETA, 'divisive');
+        etam5(convergence_steps, m5_links(i)) = clamp(etam5(convergence_steps, m5_links(i)), ETAH);
+    end
+    for i=1:length(m6_links)
+        etam6(convergence_steps, m6_links(i)) = update_learning_rate(em6, m6_links(i), ETA, 'divisive');
+        etam6(convergence_steps, m6_links(i)) = clamp(etam6(convergence_steps, m6_links(i)), ETAH);
+    end    
+    
+    %% write data to net struct
     % maps
     net_data(convergence_steps, 1) = m1;
     net_data(convergence_steps, 2) = m2;
@@ -224,11 +252,31 @@ while(1)
     net_data(convergence_steps, 19) = em6(1);
     net_data(convergence_steps, 20) = em6(2);
     
+    % sample idx
     net_data(convergence_steps, 21) = convergence_steps;
     
-    %% TODO learning rates - fixed for the moment
+    % learning rates
+    net_data(convergence_steps, 22) = etam1(convergence_steps, m1_links(1));
+    net_data(convergence_steps, 23) = etam1(convergence_steps, m1_links(2));
     
+    net_data(convergence_steps, 24) = etam2(convergence_steps, m2_links(1));
+    net_data(convergence_steps, 25) = etam2(convergence_steps, m2_links(2));
+    net_data(convergence_steps, 26) = etam2(convergence_steps, m2_links(3));
     
+    net_data(convergence_steps, 27) = etam3(convergence_steps, m3_links(1));
+    net_data(convergence_steps, 28) = etam3(convergence_steps, m3_links(2));
+    
+    net_data(convergence_steps, 29) = etam4(convergence_steps, m4_links(1));
+    net_data(convergence_steps, 30) = etam4(convergence_steps, m4_links(2));
+    net_data(convergence_steps, 31) = etam4(convergence_steps, m4_links(3));
+    
+    net_data(convergence_steps, 32) = etam5(convergence_steps, m5_links(1));
+    net_data(convergence_steps, 33) = etam5(convergence_steps, m5_links(2));
+    
+    net_data(convergence_steps, 34) = etam6(convergence_steps, m6_links(1));
+    net_data(convergence_steps, 35) = etam6(convergence_steps, m6_links(2));
+    
+    % update indices
     net_iter = net_iter + 1;
     convergence_steps = convergence_steps + 1;
 end
@@ -390,7 +438,9 @@ if ~ishold(ax3)
   [miny3,maxy3] = minmax(fusion_analyzer_data(:,2));
   axis(ax3,[minx3 maxx3 miny3 maxy3])
 end
-t = -20.0:20.0;
+% interval for the expected trajectory
+abs_max = max(abs(minx3), abs(maxx3));
+t = -abs_max:abs_max;
 plot(t, 3*t, '-m');
 set(ax3,'XGrid','on');
 set(ax3,'YGrid','on');
@@ -687,3 +737,36 @@ for i=2:length(fusion_analyzer_data(:,20))
     set(ha13,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,4));
     drawnow;
 end
+
+% plot learning rates on a per map basis 
+figure(11);
+% ------------------m1-----------------
+heta1 = subplot(2,3,1);
+plot(fusion_analyzer_data(:,21), fusion_analyzer_data(:, 22:23));
+grid on; 
+legend('Lrate w.r.t S1','Lrate w.r.t. R1');
+title('Learning rate analysis');
+% ------------------m1-----------------
+heta2 = subplot(2,3,2);
+plot(fusion_analyzer_data(:,21), fusion_analyzer_data(:, 24:26));
+grid on; legend('Lrate w.r.t S2','Lrate w.r.t. R1', 'Lrate w.r.t. R2');
+% ------------------m1-----------------
+heta3 = subplot(2,3,3);
+plot(fusion_analyzer_data(:,21), fusion_analyzer_data(:, 27:28));
+grid on; legend('Lrate w.r.t S3','Lrate w.r.t. R2');
+% ------------------m1-----------------
+heta4 = subplot(2,3,4);
+plot(fusion_analyzer_data(:,21), fusion_analyzer_data(:, 29:31));
+grid on; legend('Lrate w.r.t S4','Lrate w.r.t. R2', 'Lrate w.r.t. R3');
+% ------------------m1-----------------
+heta5 = subplot(2,3,5);
+plot(fusion_analyzer_data(:,21), fusion_analyzer_data(:, 32:33));
+grid on; legend('Lrate w.r.t S5','Lrate w.r.t. R3');
+% ------------------m1-----------------
+heta6 = subplot(2,3,6);
+plot(fusion_analyzer_data(:,21), fusion_analyzer_data(:, 34:35));
+grid on; legend('Lrate w.r.t S6', 'Lrate w.r.t. R3');
+
+heta = [heta1 heta2 heta3 heta4 heta5 heta6];
+% link axes for analysis
+linkaxes(heta, 'x');
