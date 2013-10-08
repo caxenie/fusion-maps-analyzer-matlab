@@ -3,6 +3,8 @@ close all;
 clear all;
 clc;
 
+%% Initialization
+
 % prepare sensor data  to fed to the net
 run_steps = 5000;
 show_step  = 1000;
@@ -10,15 +12,17 @@ run_iters = run_steps - 1;
 run_iters_extended = 2*run_iters;
 maps = 6;                           % number of maps
 
-% sensor values init - each sensor has it's own model
-m1_sensor = build_data_set(0.523, show_step, run_iters);
-m2_sensor = build_data_set(0.404, show_step, run_iters);
-m3_sensor = build_data_set(0.627, show_step, run_iters);
-m4_sensor = build_data_set(0.834, show_step, run_iters);
-m5_sensor = build_data_set(0.702, show_step, run_iters);
-m6_sensor = build_data_set(0.954, show_step, run_iters);
+% sensor values init - each sensor has it's own model 
+m1_sensor = build_data_set(0.523, show_step, run_iters_extended); % FIXME CHECK PROPER SIZE
+m2_sensor = build_data_set(0.404, show_step, run_iters_extended);
+m3_sensor = build_data_set(0.627, show_step, run_iters_extended);
+m4_sensor = build_data_set(0.834, show_step, run_iters_extended);
+m5_sensor = build_data_set(0.702, show_step, run_iters_extended);
+m6_sensor = build_data_set(0.954, show_step, run_iters_extended);
 
-%% Initialization
+% complex / simple learning rate adaptation rules
+complex_learning_update = 'complex'; % {simple, complex}
+
 rand_update_rule = 1;           % id of the current update rule
 update_rules = 14;              % possible update rules - depends on net topology
 rules_ids = 1:update_rules;     % individual id for each rule
@@ -49,12 +53,22 @@ em1 = zeros(1, length(m1_links)); em2 = zeros(1, length(m2_links));
 em3 = zeros(1, length(m3_links)); em4 = zeros(1, length(m4_links));
 em5 = zeros(1, length(m5_links)); em6 = zeros(1, length(m6_links));
 
+% error gradients w.r.t. each map initialization (for learning rate adaptation)
+dem1 = zeros(1, length(m1_links)); dem2 = zeros(1, length(m2_links));
+dem3 = zeros(1, length(m3_links)); dem4 = zeros(1, length(m4_links));
+dem5 = zeros(1, length(m5_links)); dem6 = zeros(1, length(m6_links));
+
+dem1_old = zeros(1, length(m1_links)); dem2_old = zeros(1, length(m2_links));
+dem3_old = zeros(1, length(m3_links)); dem4_old = zeros(1, length(m4_links));
+dem5_old = zeros(1, length(m5_links)); dem6_old = zeros(1, length(m6_links));
+
 % net params
 % learning rates setup
 maps_nr = maps;
+sensors_nr = maps_nr;
 error_nr = update_rules;
 lrates_nr = update_rules;
-net_data = zeros(sim_points, maps_nr+error_nr);
+net_data = zeros(sim_points, maps_nr+error_nr+lrates_nr);
 
 % init learning rates
 % bounds
@@ -197,32 +211,6 @@ while(1)
         em6(2) = m6 - ((m4 - m5)/2);
     end
     
-    %% learning rates adaptation and clamping
-    for i=1:length(m1_links)
-        etam1(convergence_steps, m1_links(i)) = update_learning_rate(em1, m1_links(i), ETA, 'divisive');
-        etam1(convergence_steps, m1_links(i)) = clamp(etam1(convergence_steps, m1_links(i)), ETAH);
-    end
-    for i=1:length(m2_links)
-        etam2(convergence_steps, m2_links(i)) = update_learning_rate(em2, m2_links(i), ETA, 'divisive');
-        etam2(convergence_steps, m2_links(i)) = clamp(etam2(convergence_steps, m2_links(i)), ETAH);
-    end
-    for i=1:length(m3_links)
-        etam3(convergence_steps, m3_links(i)) = update_learning_rate(em3, m3_links(i), ETA, 'divisive');
-        etam3(convergence_steps, m3_links(i)) = clamp(etam3(convergence_steps, m3_links(i)), ETAH);
-    end
-    for i=1:length(m4_links)
-        etam4(convergence_steps, m4_links(i)) = update_learning_rate(em4, m4_links(i), ETA, 'divisive');
-        etam4(convergence_steps, m4_links(i)) = clamp(etam4(convergence_steps, m4_links(i)), ETAH);
-    end
-    for i=1:length(m5_links)
-        etam5(convergence_steps, m5_links(i)) = update_learning_rate(em5, m5_links(i), ETA, 'divisive');
-        etam5(convergence_steps, m5_links(i)) = clamp(etam5(convergence_steps, m5_links(i)), ETAH);
-    end
-    for i=1:length(m6_links)
-        etam6(convergence_steps, m6_links(i)) = update_learning_rate(em6, m6_links(i), ETA, 'divisive');
-        etam6(convergence_steps, m6_links(i)) = clamp(etam6(convergence_steps, m6_links(i)), ETAH);
-    end    
-    
     %% write data to net struct
     % maps
     net_data(convergence_steps, 1) = m1;
@@ -255,30 +243,127 @@ while(1)
     % sample idx
     net_data(convergence_steps, 21) = convergence_steps;
     
-    % learning rates
-    net_data(convergence_steps, 22) = etam1(convergence_steps, m1_links(1));
-    net_data(convergence_steps, 23) = etam1(convergence_steps, m1_links(2));
+    %% learning rates adaptation and clamping
+    switch(complex_learning_update)
+        case 'simple'
+            % params
+            type = 'decay'; % {decay, divisive}
+            % simple update rules for learning rate adaptation (divisive/decay)
+            for i=1:length(m1_links)
+                etam1(convergence_steps, m1_links(i)) = update_learning_rate(etam1(convergence_steps, m1_links(i)), em1, m1_links(i), ETA, type);
+                etam1(convergence_steps, m1_links(i)) = clamp(etam1(convergence_steps, m1_links(i)), ETAH);
+            end
+            for i=1:length(m2_links)
+                etam2(convergence_steps, m2_links(i)) = update_learning_rate(etam2(convergence_steps, m2_links(i)), em2, m2_links(i), ETA, type);
+                etam2(convergence_steps, m2_links(i)) = clamp(etam2(convergence_steps, m2_links(i)), ETAH);
+            end
+            for i=1:length(m3_links)
+                etam3(convergence_steps, m3_links(i)) = update_learning_rate(etam3(convergence_steps, m3_links(i)), em3, m3_links(i), ETA, type);
+                etam3(convergence_steps, m3_links(i)) = clamp(etam3(convergence_steps, m3_links(i)), ETAH);
+            end
+            for i=1:length(m4_links)
+                etam4(convergence_steps, m4_links(i)) = update_learning_rate(etam4(convergence_steps, m4_links(i)), em4, m4_links(i), ETA, type);
+                etam4(convergence_steps, m4_links(i)) = clamp(etam4(convergence_steps, m4_links(i)), ETAH);
+            end
+            for i=1:length(m5_links)
+                etam5(convergence_steps, m5_links(i)) = update_learning_rate(etam5(convergence_steps, m5_links(i)), em5, m5_links(i), ETA, type);
+                etam5(convergence_steps, m5_links(i)) = clamp(etam5(convergence_steps, m5_links(i)), ETAH);
+            end
+            for i=1:length(m6_links)
+                etam6(convergence_steps, m6_links(i)) = update_learning_rate(etam6(convergence_steps, m6_links(i)), em6, m6_links(i), ETA, type);
+                etam6(convergence_steps, m6_links(i)) = clamp(etam6(convergence_steps, m6_links(i)), ETAH);
+            end
+        case 'complex'
+            % params init
+            u = 2;      % u > 1
+            d = 0.6;    % d < 1
+            l_min = ETA;
+            l_max = ETAH;
+            type = 'almeida'; % {almeida, rprop}
+            % compute the error gradients
+            % gradient of errors for m1
+            dem1(m1_links(1)) = -m1_sensor(convergence_steps);
+            dem1(m1_links(2)) = -m2/3;
+            
+            % gradient of errors for m2
+            dem2(m2_links(1)) = -m2_sensor(convergence_steps);
+            dem2(m2_links(2)) = -3*m1;
+            dem2(m2_links(3)) = -m3/m4;
+            
+            % gradient of errors for m3
+            dem3(m3_links(1)) = -m3_sensor(convergence_steps);
+            dem3(m3_links(2)) = -m2*m4;
+            
+            % gradient of errors for m4
+            dem4(m4_links(1)) = -m4_sensor(convergence_steps);
+            dem4(m4_links(2)) = -m3/m2;
+            dem4(m4_links(3)) = -(m5+2*m6);
+            
+            % gradient of errors for m5
+            dem5(m5_links(1)) = -m5_sensor(convergence_steps);
+            dem5(m5_links(2)) = -(m4-2*m6);
+            
+            % gradient of errors for m6
+            dem6(m6_links(1)) = -m6_sensor(convergence_steps);
+            dem6(m6_links(2)) = -((m4-m5)/2);
+            
+            % complex update rules for the learning rate
+            for i=1:length(m1_links)
+                etam1(convergence_steps, m1_links(i)) = update_learning_rate_complex(etam1(convergence_steps, m1_links(i)), dem1(i), dem1_old(i), u, d, l_min, l_max, type);
+                etam1(convergence_steps, m1_links(i)) = clamp(etam1(convergence_steps, m1_links(i)), ETAH);
+            end
+            for i=1:length(m2_links)
+                etam2(convergence_steps, m2_links(i)) = update_learning_rate_complex(etam2(convergence_steps, m2_links(i)), dem2(i), dem2_old(i), u, d, l_min, l_max, type);
+                etam2(convergence_steps, m2_links(i)) = clamp(etam2(convergence_steps, m2_links(i)), ETAH);
+            end
+            
+            for i=1:length(m3_links)
+                etam3(convergence_steps, m3_links(i)) = update_learning_rate_complex(etam3(convergence_steps, m3_links(i)), dem3(i), dem3_old(i), u, d, l_min, l_max, type);
+                etam3(convergence_steps, m3_links(i)) = clamp(etam3(convergence_steps, m3_links(i)), ETAH);
+            end
+            
+            for i=1:length(m4_links)
+                etam4(convergence_steps, m4_links(i)) = update_learning_rate_complex(etam4(convergence_steps, m4_links(i)), dem4(i), dem4_old(i), u, d, l_min, l_max, type);
+                etam4(convergence_steps, m4_links(i)) = clamp(etam4(convergence_steps, m4_links(i)), ETAH);
+            end
+            
+            for i=1:length(m5_links)
+                etam5(convergence_steps, m5_links(i)) = update_learning_rate_complex(etam5(convergence_steps, m5_links(i)), dem5(i), dem5_old(i), u, d, l_min, l_max, type);
+                etam5(convergence_steps, m5_links(i)) = clamp(etam5(convergence_steps, m5_links(i)), ETAH);
+            end
+            
+            for i=1:length(m6_links)
+                etam6(convergence_steps, m6_links(i)) = update_learning_rate_complex(etam6(convergence_steps, m6_links(i)), dem6(i), dem6_old(i), u, d, l_min, l_max, type);
+                etam6(convergence_steps, m6_links(i)) = clamp(etam6(convergence_steps, m6_links(i)), ETAH);
+            end
+    end
     
-    net_data(convergence_steps, 24) = etam2(convergence_steps, m2_links(1));
-    net_data(convergence_steps, 25) = etam2(convergence_steps, m2_links(2));
-    net_data(convergence_steps, 26) = etam2(convergence_steps, m2_links(3));
-    
-    net_data(convergence_steps, 27) = etam3(convergence_steps, m3_links(1));
-    net_data(convergence_steps, 28) = etam3(convergence_steps, m3_links(2));
-    
-    net_data(convergence_steps, 29) = etam4(convergence_steps, m4_links(1));
-    net_data(convergence_steps, 30) = etam4(convergence_steps, m4_links(2));
-    net_data(convergence_steps, 31) = etam4(convergence_steps, m4_links(3));
-    
-    net_data(convergence_steps, 32) = etam5(convergence_steps, m5_links(1));
-    net_data(convergence_steps, 33) = etam5(convergence_steps, m5_links(2));
-    
-    net_data(convergence_steps, 34) = etam6(convergence_steps, m6_links(1));
-    net_data(convergence_steps, 35) = etam6(convergence_steps, m6_links(2));
-    
-    % update indices
-    net_iter = net_iter + 1;
-    convergence_steps = convergence_steps + 1;
+% add the learning rates in the struct
+net_data(convergence_steps, 22) = etam1(convergence_steps, m1_links(1));
+net_data(convergence_steps, 23) = etam1(convergence_steps, m1_links(2));
+
+net_data(convergence_steps, 24) = etam2(convergence_steps, m2_links(1));
+net_data(convergence_steps, 25) = etam2(convergence_steps, m2_links(2));
+net_data(convergence_steps, 26) = etam2(convergence_steps, m2_links(3));
+
+net_data(convergence_steps, 27) = etam3(convergence_steps, m3_links(1));
+net_data(convergence_steps, 28) = etam3(convergence_steps, m3_links(2));
+
+net_data(convergence_steps, 29) = etam4(convergence_steps, m4_links(1));
+net_data(convergence_steps, 30) = etam4(convergence_steps, m4_links(2));
+net_data(convergence_steps, 31) = etam4(convergence_steps, m4_links(3));
+
+net_data(convergence_steps, 32) = etam5(convergence_steps, m5_links(1));
+net_data(convergence_steps, 33) = etam5(convergence_steps, m5_links(2));
+
+net_data(convergence_steps, 34) = etam6(convergence_steps, m6_links(1));
+net_data(convergence_steps, 35) = etam6(convergence_steps, m6_links(2));
+
+%% update indices
+dem1_old = dem1; dem2_old = dem2; dm3_old = dem3;
+dem4_old = dem4; dem5_old = dem5; dm6_old = dem6;
+net_iter = net_iter + 1;
+convergence_steps = convergence_steps + 1;
 end
 
 %% Visualization
@@ -403,9 +488,9 @@ ax1 = newplot(ax1);
 set(ax1,'XGrid','on');
 set(ax1,'YGrid','on');
 if ~ishold(ax1)
-  [minx1,maxx1] = minmax(fusion_analyzer_data(:,20));
-  [miny1,maxy1] = minmax(fusion_analyzer_data(:,1));
-  axis(ax1,[minx1 maxx1 miny1 maxy1])
+    [minx1,maxx1] = minmax(fusion_analyzer_data(:,20));
+    [miny1,maxy1] = minmax(fusion_analyzer_data(:,1));
+    axis(ax1,[minx1 maxx1 miny1 maxy1])
 end
 title('Maps values during simulation');
 ylabel('Map 1 values')
@@ -420,9 +505,9 @@ ax2 = newplot(ax2);
 set(ax2,'XGrid','on');
 set(ax2,'YGrid','on');
 if ~ishold(ax2)
-  [minx2,maxx2] = minmax(fusion_analyzer_data(:,20));
-  [miny2,maxy2] = minmax(fusion_analyzer_data(:,2));
-  axis(ax2,[minx2 maxx2 miny2 maxy2])
+    [minx2,maxx2] = minmax(fusion_analyzer_data(:,20));
+    [miny2,maxy2] = minmax(fusion_analyzer_data(:,2));
+    axis(ax2,[minx2 maxx2 miny2 maxy2])
 end
 ylabel('Map 2 values')
 xlabel('Data points')
@@ -434,9 +519,9 @@ subplot(3,1,3)
 [ax3] = axescheck(fusion_analyzer_data(:,1), fusion_analyzer_data(:,2));
 ax3 = newplot(ax3);
 if ~ishold(ax3)
-  [minx3,maxx3] = minmax(fusion_analyzer_data(:,1));
-  [miny3,maxy3] = minmax(fusion_analyzer_data(:,2));
-  axis(ax3,[minx3 maxx3 miny3 maxy3])
+    [minx3,maxx3] = minmax(fusion_analyzer_data(:,1));
+    [miny3,maxy3] = minmax(fusion_analyzer_data(:,2));
+    axis(ax3,[minx3 maxx3 miny3 maxy3])
 end
 % interval for the expected trajectory
 abs_max = max(abs(minx3), abs(maxx3));
@@ -471,9 +556,9 @@ ax4 = newplot(ax4);
 set(ax4,'XGrid','on');
 set(ax4,'YGrid','on');
 if ~ishold(ax4)
-  [minx4,maxx4] = minmax(fusion_analyzer_data(:,20));
-  [miny4,maxy4] = minmax(fusion_analyzer_data(:,3));
-  axis(ax4,[minx4 maxx4 miny4 maxy4])
+    [minx4,maxx4] = minmax(fusion_analyzer_data(:,20));
+    [miny4,maxy4] = minmax(fusion_analyzer_data(:,3));
+    axis(ax4,[minx4 maxx4 miny4 maxy4])
 end
 title('Maps values during simulation');
 hc4 =  line('parent',ax4, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,3));
@@ -489,9 +574,9 @@ ax5 = newplot(ax5);
 set(ax5,'XGrid','on');
 set(ax5,'YGrid','on');
 if ~ishold(ax5)
-  [minx5,maxx5] = minmax(fusion_analyzer_data(:,20));
-  [miny5,maxy5] = minmax(fusion_analyzer_data(:,4));
-  axis(ax5,[minx5 maxx5 miny5 maxy5])
+    [minx5,maxx5] = minmax(fusion_analyzer_data(:,20));
+    [miny5,maxy5] = minmax(fusion_analyzer_data(:,4));
+    axis(ax5,[minx5 maxx5 miny5 maxy5])
 end
 hc5 =  line('parent',ax5, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,4));
 ha5 = line('parent',ax5,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
@@ -505,9 +590,9 @@ ax6 = newplot(ax6);
 set(ax6,'XGrid','on');
 set(ax6,'YGrid','on');
 if ~ishold(ax6)
-  [minx6,maxx6] = minmax(fusion_analyzer_data(:,20));
-  [miny6,maxy6] = minmax(fusion_analyzer_data(:,5));
-  axis(ax6,[minx6 maxx6 miny6 maxy6])
+    [minx6,maxx6] = minmax(fusion_analyzer_data(:,20));
+    [miny6,maxy6] = minmax(fusion_analyzer_data(:,5));
+    axis(ax6,[minx6 maxx6 miny6 maxy6])
 end
 hc6 = line('parent',ax6, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,5));
 ha6 = line('parent',ax6,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
@@ -521,9 +606,9 @@ ax7 = newplot(ax7);
 set(ax7,'XGrid','on');
 set(ax7,'YGrid','on');
 if ~ishold(ax7)
-  [minx7,maxx7] = minmax(fusion_analyzer_data(:,20));
-  [miny7,maxy7] = minmax(fusion_analyzer_data(:,6));
-  axis(ax7,[minx7 maxx7 miny7 maxy7])
+    [minx7,maxx7] = minmax(fusion_analyzer_data(:,20));
+    [miny7,maxy7] = minmax(fusion_analyzer_data(:,6));
+    axis(ax7,[minx7 maxx7 miny7 maxy7])
 end
 hc7 =  line('parent',ax7, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,6));
 ha7 = line('parent',ax7,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
@@ -611,9 +696,9 @@ ax8 = newplot(ax8);
 set(ax8,'XGrid','on');
 set(ax8,'YGrid','on');
 if ~ishold(ax8)
-  [minx8,maxx8] = minmax(fusion_analyzer_data(:,20));
-  [miny8,maxy8] = minmax(3*fusion_analyzer_data(:,1));
-  axis(ax8,[minx8 maxx8 miny8 maxy8])
+    [minx8,maxx8] = minmax(fusion_analyzer_data(:,20));
+    [miny8,maxy8] = minmax(3*fusion_analyzer_data(:,1));
+    axis(ax8,[minx8 maxx8 miny8 maxy8])
 end
 hc8 = line('parent',ax8, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',3*fusion_analyzer_data(1,1));
 ha8 = line('parent',ax8,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
@@ -625,9 +710,9 @@ ax9 = newplot(ax9);
 set(ax9,'XGrid','on');
 set(ax9,'YGrid','on');
 if ~ishold(ax9)
-  [minx9,maxx9] = minmax(fusion_analyzer_data(:,20));
-  [miny9,maxy9] = minmax(fusion_analyzer_data(:,2));
-  axis(ax9,[minx9 maxx9 miny9 maxy9])
+    [minx9,maxx9] = minmax(fusion_analyzer_data(:,20));
+    [miny9,maxy9] = minmax(fusion_analyzer_data(:,2));
+    axis(ax9,[minx9 maxx9 miny9 maxy9])
 end
 hc9 =  line('parent',ax9, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,2));
 ha9 = line('parent',ax9,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
@@ -659,9 +744,9 @@ ax10 = newplot(ax10);
 set(ax10,'XGrid','on');
 set(ax10,'YGrid','on');
 if ~ishold(ax10)
-  [minx10,maxx10] = minmax(fusion_analyzer_data(:,20));
-  [miny10,maxx10] = minmax(fusion_analyzer_data(:,2).*fusion_analyzer_data(:,4));
-  axis(ax10,[minx10 maxx10 miny10 maxy10])
+    [minx10,maxx10] = minmax(fusion_analyzer_data(:,20));
+    [miny10,maxx10] = minmax(fusion_analyzer_data(:,2).*fusion_analyzer_data(:,4));
+    axis(ax10,[minx10 maxx10 miny10 maxy10])
 end
 hc10 = line('parent',ax10, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,2).*fusion_analyzer_data(1,4));
 ha10 = line('parent',ax10,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
@@ -673,9 +758,9 @@ ax11 = newplot(ax11);
 set(ax11,'XGrid','on');
 set(ax11,'YGrid','on');
 if ~ishold(ax11)
-  [minx11,maxx11] = minmax(fusion_analyzer_data(:,20));
-  [miny11,maxy11] = minmax(fusion_analyzer_data(:,2));
-  axis(ax11,[minx11 maxx11 miny11 maxy11])
+    [minx11,maxx11] = minmax(fusion_analyzer_data(:,20));
+    [miny11,maxy11] = minmax(fusion_analyzer_data(:,2));
+    axis(ax11,[minx11 maxx11 miny11 maxy11])
 end
 hc11 =  line('parent',ax11, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata', fusion_analyzer_data(1,3));
 ha11 = line('parent',ax11,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
@@ -707,9 +792,9 @@ ax12 = newplot(ax12);
 set(ax12,'XGrid','on');
 set(ax12,'YGrid','on');
 if ~ishold(ax12)
-  [minx12,maxx12] = minmax(fusion_analyzer_data(:,20));
-  [miny12,maxx12] = minmax(fusion_analyzer_data(:,5)+2*fusion_analyzer_data(:,6));
-  axis(ax12,[minx12 maxx12 miny12 maxy12])
+    [minx12,maxx12] = minmax(fusion_analyzer_data(:,20));
+    [miny12,maxx12] = minmax(fusion_analyzer_data(:,5)+2*fusion_analyzer_data(:,6));
+    axis(ax12,[minx12 maxx12 miny12 maxy12])
 end
 hc12 = line('parent',ax12, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,5)+2*fusion_analyzer_data(1,6));
 ha12 = line('parent',ax12,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
@@ -721,9 +806,9 @@ ax13 = newplot(ax13);
 set(ax13,'XGrid','on');
 set(ax13,'YGrid','on');
 if ~ishold(ax13)
-  [minx13,maxx13] = minmax(fusion_analyzer_data(:,20));
-  [miny13,maxy13] = minmax(fusion_analyzer_data(:,4));
-  axis(ax13,[minx13 maxx13 miny13 maxy13])
+    [minx13,maxx13] = minmax(fusion_analyzer_data(:,20));
+    [miny13,maxy13] = minmax(fusion_analyzer_data(:,4));
+    axis(ax13,[minx13 maxx13 miny13 maxy13])
 end
 hc13 =  line('parent',ax13, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata', fusion_analyzer_data(1,4));
 ha13 = line('parent',ax13,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
@@ -738,12 +823,12 @@ for i=2:length(fusion_analyzer_data(:,20))
     drawnow;
 end
 
-% plot learning rates on a per map basis 
+% plot learning rates on a per map basis
 figure(11);
 % ------------------m1-----------------
 heta1 = subplot(2,3,1);
 plot(fusion_analyzer_data(:,21), fusion_analyzer_data(:, 22:23));
-grid on; 
+grid on;
 legend('Lrate w.r.t S1','Lrate w.r.t. R1');
 title('Learning rate analysis');
 % ------------------m1-----------------
