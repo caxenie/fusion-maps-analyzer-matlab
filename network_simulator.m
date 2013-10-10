@@ -6,7 +6,7 @@ clc;
 %% Initialization
 
 % enable or disable visualization
-visualization_on = 1;
+visualization_on = 0;
 
 % prepare sensor data  to fed to the net
 run_steps = 5000;
@@ -24,14 +24,13 @@ m5_sensor = build_data_set(0.702, show_step, run_iters);
 m6_sensor = build_data_set(0.954, show_step, run_iters);
 
 % complex / simple learning rate adaptation rules
-complex_learning_update = 'simple'; % {simple, complex}
+complex_learning_update = 'complex'; % {simple, complex}
 % params
 switch complex_learning_update
     case 'simple'
-        err_type = 'simple';            % {simple, squared}
-        type = 'divisive';                 % {decay, divisive}
+        type = 'divisive';              % {decay, divisive}
     case 'complex'
-        err_type = 'simple';            % {simple, squared}
+        err_type = 'squared';            % {squared}
         type = 'up-down-factor';        % {up-down-factor, min-max-factor}
 end
 
@@ -55,10 +54,10 @@ m4 = rand; m5 = rand; m6 = rand;
 m1_ant = m1;
 m2_ant = m2;
 
-% temporal terms 
+% temporal terms
 int_m1 = 0.0;
 deriv_m2 = 0.0;
-dtk = 0.00001;
+dtk = 1;
 
 % maps ids
 m1_id = 1; m2_id = 2; m3_id = 3;
@@ -196,239 +195,199 @@ while(1)
             case 14
                 m6 = (1-ETA)*m6 + etam6(convergence_steps, m6_links(2)) * ...
                     ((m4 - m5)/2);
-        end                
+        end
     end
     
-    %% compute the temporal relationships 
+    % --------errors--------
+    % error computation for learning rate adaptation
+    % m1
+    if(sensor_connected(m1_id)==1)
+        em1(1) = m1 - m1_sensor(net_iter);
+    end
+    em1(2) = m1 - deriv_m2;
+    % m2
+    if(sensor_connected(m2_id)==1)
+        em2(1) = m2 - m2_sensor(net_iter);
+    end
+    em2(2) = m2 - int_m1;
+    em2(3) = m2 - m3/m4;
+    % m3
+    if(sensor_connected(m3_id)==1)
+        em3(1) = m3 - m3_sensor(net_iter);
+    end
+    em3(2) = m3 - m2*m4;
+    % m4
+    if(sensor_connected(m4_id)==1)
+        em4(1) = m4 - m4_sensor(net_iter);
+    end
+    em4(2) = m4 - m3/m2;
+    em4(3) = m4 - (m5+2*m6);
+    % m5
+    if(sensor_connected(m5_id)==1)
+        em5(1) = m5 - m5_sensor(net_iter);
+    end
+    em5(2) = m5 - (m4 - 2*m6);
+    % m6
+    if(sensor_connected(m6_id)==1)
+        em6(1) = m6 - m6_sensor(net_iter);
+    end
+    em6(2) = m6 - ((m4 - m5)/2);
+    
+    %% compute the temporal relationships
     int_m1 = int_m1 + (m1_ant + m1)*dtk/2;
     deriv_m2 = (m2 - m2_ant)/dtk;
     
-            %% learning rates adaptation and clamping
-                    % compute the error gradients for simple / squared error for
-        % complex update rules
-        switch err_type
-            case 'simple'
-                
-                % --------errors--------
-                % error computation for learning rate adaptation
-                % m1
-                if(sensor_connected(m1_id)==1)
-                    em1(1) = m1 - m1_sensor(net_iter);
-                end
-                em1(2) = m1 - deriv_m2;
-                % m2
-                if(sensor_connected(m2_id)==1)
-                    em2(1) = m2 - m2_sensor(net_iter);
-                end
-                em2(2) = m2 - int_m1;
-                em2(3) = m2 - m3/m4;
-                % m3
-                if(sensor_connected(m3_id)==1)
-                    em3(1) = m3 - m3_sensor(net_iter);
-                end
-                em3(2) = m3 - m2*m4;
-                % m4
-                if(sensor_connected(m4_id)==1)
-                    em4(1) = m4 - m4_sensor(net_iter);
-                end
-                em4(2) = m4 - m3/m2;
-                em4(3) = m4 - (m5+2*m6);
-                % m5
-                if(sensor_connected(m5_id)==1)
-                    em5(1) = m5 - m5_sensor(net_iter);
-                end
-                em5(2) = m5 - (m4 - 2*m6);
-                % m6
-                if(sensor_connected(m6_id)==1)
-                    em6(1) = m6 - m6_sensor(net_iter);
-                end
-                em6(2) = m6 - ((m4 - m5)/2);
-                
-                % ---------gradients----------
-                % gradient of errors for m1
-                if(sensor_connected(m1_id)==1)
-                    dem1(m1_links(1)) = -m1_sensor(net_iter);
-                end
-                dem1(m1_links(2)) = -deriv_m2;
-                
-                % gradient of errors for m2
-                if(sensor_connected(m2_id)==1)
-                    dem2(m2_links(1)) = -m2_sensor(net_iter);
-                end
-                dem2(m2_links(2)) = -int_m1;
-                dem2(m2_links(3)) = -m3/m4;
-                
-                % gradient of errors for m3
-                if(sensor_connected(m3_id)==1)
-                    dem3(m3_links(1)) = -m3_sensor(net_iter);
-                end
-                dem3(m3_links(2)) = -m2*m4;
-                
-                % gradient of errors for m4
-                if(sensor_connected(m4_id)==1)
-                    dem4(m4_links(1)) = -m4_sensor(net_iter);
-                end
-                dem4(m4_links(2)) = -m3/m2;
-                dem4(m4_links(3)) = -(m5+2*m6);
-                
-                % gradient of errors for m5
-                if(sensor_connected(m5_id)==1)
-                    dem5(m5_links(1)) = -m5_sensor(net_iter);
-                end
-                dem5(m5_links(2)) = -(m4-2*m6);
-                
-                % gradient of errors for m6
-                if(sensor_connected(m6_id)==1)
-                    dem6(m6_links(1)) = -m6_sensor(net_iter);
-                end
-                dem6(m6_links(2)) = -((m4-m5)/2);
-                
-            case 'squared'
-                
-                % -----------errors------------
-                % error computation for learning rate adaptation
-                % m1
-                if(sensor_connected(m1_id)==1)
-                    em1(1) = (m1 - m1_sensor(net_iter))^2;
-                end
-                em1(2) = (m1 - deriv_m2)^2;
-                % m2
-                if(sensor_connected(m2_id)==1)
-                    em2(1) = (m2 - m2_sensor(net_iter))^2;
-                end
-                em2(2) = (m2 - int_m1)^2;
-                em2(3) = (m2 - m3/m4)^2;
-                % m3
-                if(sensor_connected(m3_id)==1)
-                    em3(1) = (m3 - m3_sensor(net_iter))^2;
-                end
-                em3(2) = (m3 - m2*m4)^2;
-                % m4
-                if(sensor_connected(m4_id)==1)
-                    em4(1) = (m4 - m4_sensor(net_iter))^2;
-                end
-                em4(2) = (m4 - m3/m2)^2;
-                em4(3) = (m4 - (m5+2*m6))^2;
-                % m5
-                if(sensor_connected(m5_id)==1)
-                    em5(1) = (m5 - m5_sensor(net_iter))^2;
-                end
-                em5(2) = (m5 - (m4 - 2*m6))^2;
-                % m6
-                if(sensor_connected(m6_id)==1)
-                    em6(1) = (m6 - m6_sensor(net_iter))^2;
-                end
-                em6(2) = (m6 - ((m4 - m5)/2))^2;
-                
-                % ---------gradients----------
-                % gradient of errors for m1
-                if(sensor_connected(m1_id)==1)
-                    dem1(m1_links(1)) = 2*(m1-m1_sensor(net_iter))*(-m1_sensor(net_iter));
-                end
-                dem1(m1_links(2)) = 2*(m1-deriv_m2)*(-deriv_m2);
-                
-                % gradient of errors for m2
-                if(sensor_connected(m2_id)==1)
-                    dem2(m2_links(1)) = 2*(m2-m2_sensor(net_iter))*(-m2_sensor(net_iter));
-                end
-                dem2(m2_links(2)) = 2*(m2-int_m1)*(-int_m1);
-                dem2(m2_links(3)) = 2*(m2-m3/m4)*(-m3/m4);
-                
-                % gradient of errors for m3
-                if(sensor_connected(m3_id)==1)
-                    dem3(m3_links(1)) = 2*(m3-m3_sensor(net_iter))*(-m3_sensor(net_iter));
-                end
-                dem3(m3_links(2)) = 2*(m3-m2*m4)*(-m2/m4);
-                
-                % gradient of errors for m4
-                if(sensor_connected(m4_id)==1)
-                    dem4(m4_links(1)) = 2*(m4-m4_sensor(net_iter))*(-m4_sensor(net_iter));
-                end
-                dem4(m4_links(2)) = 2*(m4-m3/m2)*(-m3/m2);
-                dem4(m4_links(3)) = 2*(m4-(m5+2*m6))*(-(m5+2*m6));
-                
-                % gradient of errors for m5
-                if(sensor_connected(m5_id)==1)
-                    dem5(m5_links(1)) = 2*(m5-m5_sensor(net_iter))*(-m5_sensor(net_iter));
-                end
-                dem5(m5_links(2)) = 2*(m5-(m4-2*m6))*(-(m4-2*m6));
-                
-                % gradient of errors for m6
-                if(sensor_connected(m6_id)==1)
-                    dem6(m6_links(1)) = 2*(m6-m6_sensor(net_iter))*(-m6_sensor(net_iter));
-                end
-                dem6(m6_links(2)) = 2*(m6-((m4-m5)/2))*(-((m4-m5)/2));
-        end
+    %% learning rates adaptation and clamping
+    % compute the error gradients for simple / squared error for
+    % complex update rules
+    switch err_type
         
-        switch(complex_learning_update)
-            case 'simple'
-                % simple update rules for learning rate adaptation (divisive/decay)
-                for k=1:length(m1_links)
-                    etam1(convergence_steps, m1_links(k)) = update_learning_rate(etam1(convergence_steps, m1_links(k)), em1, m1_links(k), ETA, type);
-                    etam1(convergence_steps, m1_links(k)) = clamp(etam1(convergence_steps, m1_links(k)), ETAH);
-                end
-                for k=1:length(m2_links)
-                    etam2(convergence_steps, m2_links(k)) = update_learning_rate(etam2(convergence_steps, m2_links(k)), em2, m2_links(k), ETA, type);
-                    etam2(convergence_steps, m2_links(k)) = clamp(etam2(convergence_steps, m2_links(k)), ETAH);
-                end
-                for k=1:length(m3_links)
-                    etam3(convergence_steps, m3_links(k)) = update_learning_rate(etam3(convergence_steps, m3_links(k)), em3, m3_links(k), ETA, type);
-                    etam3(convergence_steps, m3_links(k)) = clamp(etam3(convergence_steps, m3_links(k)), ETAH);
-                end
-                for k=1:length(m4_links)
-                    etam4(convergence_steps, m4_links(k)) = update_learning_rate(etam4(convergence_steps, m4_links(k)), em4, m4_links(k), ETA, type);
-                    etam4(convergence_steps, m4_links(k)) = clamp(etam4(convergence_steps, m4_links(k)), ETAH);
-                end
-                for k=1:length(m5_links)
-                    etam5(convergence_steps, m5_links(k)) = update_learning_rate(etam5(convergence_steps, m5_links(k)), em5, m5_links(k), ETA, type);
-                    etam5(convergence_steps, m5_links(k)) = clamp(etam5(convergence_steps, m5_links(k)), ETAH);
-                end
-                for k=1:length(m6_links)
-                    etam6(convergence_steps, m6_links(k)) = update_learning_rate(etam6(convergence_steps, m6_links(k)), em6, m6_links(k), ETA, type);
-                    etam6(convergence_steps, m6_links(k)) = clamp(etam6(convergence_steps, m6_links(k)), ETAH);
-                end
-            case 'complex'
-                % params init
-                u = 134;           % u > 1
-                d = 0.00030554366;      % d < 1
-                l_min = ETA;
-                l_max = ETAH;
-                
-                % complex update rules for the learning rate
-                for k=1:length(m1_links)
-                    etam1(convergence_steps, m1_links(k)) = update_learning_rate_complex(etam1(convergence_steps, m1_links(k)), dem1(k), dem1_old(k), u, d, l_min, l_max, type);
-                    etam1(convergence_steps, m1_links(k)) = clamp(etam1(convergence_steps, m1_links(k)), ETAH);
-                end
-                for k=1:length(m2_links)
-                    etam2(convergence_steps, m2_links(k)) = update_learning_rate_complex(etam2(convergence_steps, m2_links(k)), dem2(k), dem2_old(k), u, d, l_min, l_max, type);
-                    etam2(convergence_steps, m2_links(k)) = clamp(etam2(convergence_steps, m2_links(k)), ETAH);
-                end
-                
-                for k=1:length(m3_links)
-                    etam3(convergence_steps, m3_links(k)) = update_learning_rate_complex(etam3(convergence_steps, m3_links(k)), dem3(k), dem3_old(k), u, d, l_min, l_max, type);
-                    etam3(convergence_steps, m3_links(k)) = clamp(etam3(convergence_steps, m3_links(k)), ETAH);
-                end
-                
-                for k=1:length(m4_links)
-                    etam4(convergence_steps, m4_links(k)) = update_learning_rate_complex(etam4(convergence_steps, m4_links(k)), dem4(k), dem4_old(k), u, d, l_min, l_max, type);
-                    etam4(convergence_steps, m4_links(k)) = clamp(etam4(convergence_steps, m4_links(k)), ETAH);
-                end
-                
-                for k=1:length(m5_links)
-                    etam5(convergence_steps, m5_links(k)) = update_learning_rate_complex(etam5(convergence_steps, m5_links(k)), dem5(k), dem5_old(k), u, d, l_min, l_max, type);
-                    etam5(convergence_steps, m5_links(k)) = clamp(etam5(convergence_steps, m5_links(k)), ETAH);
-                end
-                
-                for k=1:length(m6_links)
-                    etam6(convergence_steps, m6_links(k)) = update_learning_rate_complex(etam6(convergence_steps, m6_links(k)), dem6(k), dem6_old(k), u, d, l_min, l_max, type);
-                    etam6(convergence_steps, m6_links(k)) = clamp(etam6(convergence_steps, m6_links(k)), ETAH);
-                end
-        end
-        
-        % update indices
-        dem1_old = dem1; dem2_old = dem2; dm3_old = dem3;
-        dem4_old = dem4; dem5_old = dem5; dm6_old = dem6;
-        
+        case 'squared'
+            
+            % -----------errors------------
+            % error computation for learning rate adaptation
+            % m1
+            if(sensor_connected(m1_id)==1)
+                em1(1) = (m1 - m1_sensor(net_iter))^2;
+            end
+            em1(2) = (m1 - deriv_m2)^2;
+            % m2
+            if(sensor_connected(m2_id)==1)
+                em2(1) = (m2 - m2_sensor(net_iter))^2;
+            end
+            em2(2) = (m2 - int_m1)^2;
+            em2(3) = (m2 - m3/m4)^2;
+            % m3
+            if(sensor_connected(m3_id)==1)
+                em3(1) = (m3 - m3_sensor(net_iter))^2;
+            end
+            em3(2) = (m3 - m2*m4)^2;
+            % m4
+            if(sensor_connected(m4_id)==1)
+                em4(1) = (m4 - m4_sensor(net_iter))^2;
+            end
+            em4(2) = (m4 - m3/m2)^2;
+            em4(3) = (m4 - (m5+2*m6))^2;
+            % m5
+            if(sensor_connected(m5_id)==1)
+                em5(1) = (m5 - m5_sensor(net_iter))^2;
+            end
+            em5(2) = (m5 - (m4 - 2*m6))^2;
+            % m6
+            if(sensor_connected(m6_id)==1)
+                em6(1) = (m6 - m6_sensor(net_iter))^2;
+            end
+            em6(2) = (m6 - ((m4 - m5)/2))^2;
+            
+            % ---------gradients----------
+            % gradient of errors for m1
+            if(sensor_connected(m1_id)==1)
+                dem1(m1_links(1)) = 2*(m1-m1_sensor(net_iter))*(-m1_sensor(net_iter));
+            end
+            dem1(m1_links(2)) = 2*(m1-deriv_m2)*(-deriv_m2);
+            
+            % gradient of errors for m2
+            if(sensor_connected(m2_id)==1)
+                dem2(m2_links(1)) = 2*(m2-m2_sensor(net_iter))*(-m2_sensor(net_iter));
+            end
+            dem2(m2_links(2)) = 2*(m2-int_m1)*(-int_m1);
+            dem2(m2_links(3)) = 2*(m2-m3/m4)*(-m3/m4);
+            
+            % gradient of errors for m3
+            if(sensor_connected(m3_id)==1)
+                dem3(m3_links(1)) = 2*(m3-m3_sensor(net_iter))*(-m3_sensor(net_iter));
+            end
+            dem3(m3_links(2)) = 2*(m3-m2*m4)*(-m2/m4);
+            
+            % gradient of errors for m4
+            if(sensor_connected(m4_id)==1)
+                dem4(m4_links(1)) = 2*(m4-m4_sensor(net_iter))*(-m4_sensor(net_iter));
+            end
+            dem4(m4_links(2)) = 2*(m4-m3/m2)*(-m3/m2);
+            dem4(m4_links(3)) = 2*(m4-(m5+2*m6))*(-(m5+2*m6));
+            
+            % gradient of errors for m5
+            if(sensor_connected(m5_id)==1)
+                dem5(m5_links(1)) = 2*(m5-m5_sensor(net_iter))*(-m5_sensor(net_iter));
+            end
+            dem5(m5_links(2)) = 2*(m5-(m4-2*m6))*(-(m4-2*m6));
+            
+            % gradient of errors for m6
+            if(sensor_connected(m6_id)==1)
+                dem6(m6_links(1)) = 2*(m6-m6_sensor(net_iter))*(-m6_sensor(net_iter));
+            end
+            dem6(m6_links(2)) = 2*(m6-((m4-m5)/2))*(-((m4-m5)/2));
+    end
+    
+    switch(complex_learning_update)
+        case 'simple'
+            % simple update rules for learning rate adaptation (divisive/decay)
+            for k=1:length(m1_links)
+                etam1(convergence_steps, m1_links(k)) = update_learning_rate(etam1(convergence_steps, m1_links(k)), em1, m1_links(k), ETA, type);
+                etam1(convergence_steps, m1_links(k)) = clamp(etam1(convergence_steps, m1_links(k)), ETAH);
+            end
+            for k=1:length(m2_links)
+                etam2(convergence_steps, m2_links(k)) = update_learning_rate(etam2(convergence_steps, m2_links(k)), em2, m2_links(k), ETA, type);
+                etam2(convergence_steps, m2_links(k)) = clamp(etam2(convergence_steps, m2_links(k)), ETAH);
+            end
+            for k=1:length(m3_links)
+                etam3(convergence_steps, m3_links(k)) = update_learning_rate(etam3(convergence_steps, m3_links(k)), em3, m3_links(k), ETA, type);
+                etam3(convergence_steps, m3_links(k)) = clamp(etam3(convergence_steps, m3_links(k)), ETAH);
+            end
+            for k=1:length(m4_links)
+                etam4(convergence_steps, m4_links(k)) = update_learning_rate(etam4(convergence_steps, m4_links(k)), em4, m4_links(k), ETA, type);
+                etam4(convergence_steps, m4_links(k)) = clamp(etam4(convergence_steps, m4_links(k)), ETAH);
+            end
+            for k=1:length(m5_links)
+                etam5(convergence_steps, m5_links(k)) = update_learning_rate(etam5(convergence_steps, m5_links(k)), em5, m5_links(k), ETA, type);
+                etam5(convergence_steps, m5_links(k)) = clamp(etam5(convergence_steps, m5_links(k)), ETAH);
+            end
+            for k=1:length(m6_links)
+                etam6(convergence_steps, m6_links(k)) = update_learning_rate(etam6(convergence_steps, m6_links(k)), em6, m6_links(k), ETA, type);
+                etam6(convergence_steps, m6_links(k)) = clamp(etam6(convergence_steps, m6_links(k)), ETAH);
+            end
+        case 'complex'
+            % params init
+            u = 134;           % u > 1
+            d = 0.00030554366;      % d < 1
+            l_min = ETA;
+            l_max = ETAH;
+            
+            % complex update rules for the learning rate
+            for k=1:length(m1_links)
+                etam1(convergence_steps, m1_links(k)) = update_learning_rate_complex(etam1(convergence_steps, m1_links(k)), dem1(k), dem1_old(k), u, d, l_min, l_max, type);
+                etam1(convergence_steps, m1_links(k)) = clamp(etam1(convergence_steps, m1_links(k)), ETAH);
+            end
+            for k=1:length(m2_links)
+                etam2(convergence_steps, m2_links(k)) = update_learning_rate_complex(etam2(convergence_steps, m2_links(k)), dem2(k), dem2_old(k), u, d, l_min, l_max, type);
+                etam2(convergence_steps, m2_links(k)) = clamp(etam2(convergence_steps, m2_links(k)), ETAH);
+            end
+            
+            for k=1:length(m3_links)
+                etam3(convergence_steps, m3_links(k)) = update_learning_rate_complex(etam3(convergence_steps, m3_links(k)), dem3(k), dem3_old(k), u, d, l_min, l_max, type);
+                etam3(convergence_steps, m3_links(k)) = clamp(etam3(convergence_steps, m3_links(k)), ETAH);
+            end
+            
+            for k=1:length(m4_links)
+                etam4(convergence_steps, m4_links(k)) = update_learning_rate_complex(etam4(convergence_steps, m4_links(k)), dem4(k), dem4_old(k), u, d, l_min, l_max, type);
+                etam4(convergence_steps, m4_links(k)) = clamp(etam4(convergence_steps, m4_links(k)), ETAH);
+            end
+            
+            for k=1:length(m5_links)
+                etam5(convergence_steps, m5_links(k)) = update_learning_rate_complex(etam5(convergence_steps, m5_links(k)), dem5(k), dem5_old(k), u, d, l_min, l_max, type);
+                etam5(convergence_steps, m5_links(k)) = clamp(etam5(convergence_steps, m5_links(k)), ETAH);
+            end
+            
+            for k=1:length(m6_links)
+                etam6(convergence_steps, m6_links(k)) = update_learning_rate_complex(etam6(convergence_steps, m6_links(k)), dem6(k), dem6_old(k), u, d, l_min, l_max, type);
+                etam6(convergence_steps, m6_links(k)) = clamp(etam6(convergence_steps, m6_links(k)), ETAH);
+            end
+    end
+    
+    % update indices
+    dem1_old = dem1; dem2_old = dem2; dm3_old = dem3;
+    dem4_old = dem4; dem5_old = dem5; dm6_old = dem6;
+    
     %% write data to net struct
     % maps
     net_data(convergence_steps, 1) = m1;
@@ -494,114 +453,115 @@ end
 fusion_analyzer_data = net_data;
 
 %% Visualization
+
+figure(1);
+% ---------------- R1 ----------------------
+hd(1) = subplot(4, 3, 1);
+plot(net_data(:, 1), '.b');
+grid on; title('M1 map values');
+
+hd(2) = subplot(4, 3, 4);
+plot(net_data(:, 2), '.b');
+grid on; title('M2 map values');
+
+hd(3) = subplot(4, 3, 7);
+plot(m1_sensor, '.k');
+grid on; title('S1 sensor values');
+
+hd(4) = subplot(4, 3, 10);
+plot(m2_sensor, '.k');
+grid on; title('S2 sensor values');
+% -------------------------------------------
+
+% ---------------- R2 ----------------------
+hd(5) = subplot(4, 3, 2);
+plot(net_data(:, 3), '.r');
+grid on; title('M3 map values');
+
+hd(6) = subplot(4, 3, 5);
+plot(net_data(:, 4), '.r');
+grid on; title('M4 map values');
+
+hd(7) = subplot(4, 3, 8);
+plot(m3_sensor, '.k');
+grid on; title('S3 sensor values');
+
+hd(8) = subplot(4, 3, 11);
+plot(m2_sensor, '.k');
+grid on; title('S4 sensor values');
+% -------------------------------------------
+
+% ---------------- R3 ----------------------
+hd(9) = subplot(4, 3, 3);
+plot(net_data(:, 5), '.g');
+grid on; title('M5 map values');
+
+hd(10) = subplot(4, 3, 6);
+plot(net_data(:, 6), '.g');
+grid on; title('M6 map values');
+
+hd(11) = subplot(4, 3, 9);
+plot(m5_sensor, '.k');
+grid on; title('S5 sensor values');
+
+hd(12) = subplot(4, 3, 12);
+plot(m6_sensor, '.k');
+grid on; title('S6 sensor values');
+
+% link axes
+linkaxes(hd, 'x');
+
+% -------------- Erros signals --------------
+figure(2);
+%-------------------M1-------------------
+he(1) = subplot(2,3,1);
+plot(net_data(:,7),'.k');hold on;
+plot(net_data(:,8), '.b');
+title('M1 errors');
+legend('Err w.r.t S1', 'Err w.r.t R1');
+grid on;
+%-------------------M2-------------------
+he(2) = subplot(2,3,2);
+plot(net_data(:,9), '.k'); hold on;
+plot(net_data(:,10), '.b'); hold on;
+plot(net_data(:,11), '.r');
+title('M2 errors');
+legend('Err w.r.t S2', 'Err w.r.t R1', 'Err w.r.t R2');
+grid on;
+%-------------------M3-------------------
+he(3) = subplot(2,3,3);
+plot(net_data(:,12), '.k'); hold on;
+plot(net_data(:, 13), '.r');
+title('M3 errors');
+legend('Err w.r.t S3', 'Err w.r.t R2');
+grid on;
+%-------------------M4-------------------
+he(4) = subplot(2,3,4);
+plot(net_data(:,14), '.k'); hold on;
+plot(net_data(:,15), '.r'); hold on;
+plot(net_data(:, 16), '.g');
+title('M4 errors');
+legend('Err w.r.t S4', 'Err w.r.t R2', 'Err w.r.t R3');
+grid on;
+%-------------------M5-------------------
+he(5) = subplot(2,3,5);
+plot(net_data(:,17), '.k'); hold on;
+plot(net_data(:, 18), '.g');
+title('M5 errors');
+legend('Err w.r.t S5', 'Err w.r.t R3');
+grid on;
+%-------------------M6-------------------
+he(6) = subplot(2,3,6);
+plot(net_data(:,19), '.k'); hold on;
+plot(net_data(:, 20), '.g');
+title('M6 errors');
+legend('Err w.r.t S6', 'Err w.r.t R3');
+grid on;
+
+linkaxes(he, 'x');
+% -------------------------------------------
+
 if(visualization_on==1)
-    figure(1);
-    % ---------------- R1 ----------------------
-    hd(1) = subplot(4, 3, 1);
-    plot(net_data(:, 1), '.b');
-    grid off; title('M1 map values');
-    
-    hd(2) = subplot(4, 3, 4);
-    plot(net_data(:, 2), '.b');
-    grid off; title('M2 map values');
-    
-    hd(3) = subplot(4, 3, 7);
-    plot(m1_sensor, '.k');
-    grid off; title('S1 sensor values');
-    
-    hd(4) = subplot(4, 3, 10);
-    plot(m2_sensor, '.k');
-    grid off; title('S2 sensor values');
-    % -------------------------------------------
-    
-    % ---------------- R2 ----------------------
-    hd(5) = subplot(4, 3, 2);
-    plot(net_data(:, 3), '.r');
-    grid off; title('M3 map values');
-    
-    hd(6) = subplot(4, 3, 5);
-    plot(net_data(:, 4), '.r');
-    grid off; title('M4 map values');
-    
-    hd(7) = subplot(4, 3, 8);
-    plot(m3_sensor, '.k');
-    grid off; title('S3 sensor values');
-    
-    hd(8) = subplot(4, 3, 11);
-    plot(m2_sensor, '.k');
-    grid off; title('S4 sensor values');
-    % -------------------------------------------
-    
-    % ---------------- R3 ----------------------
-    hd(9) = subplot(4, 3, 3);
-    plot(net_data(:, 5), '.g');
-    grid off; title('M5 map values');
-    
-    hd(10) = subplot(4, 3, 6);
-    plot(net_data(:, 6), '.g');
-    grid off; title('M6 map values');
-    
-    hd(11) = subplot(4, 3, 9);
-    plot(m5_sensor, '.k');
-    grid off; title('S5 sensor values');
-    
-    hd(12) = subplot(4, 3, 12);
-    plot(m6_sensor, '.k');
-    grid off; title('S6 sensor values');
-    
-    % link axes
-    linkaxes(hd, 'x');
-    
-    % -------------- Erros signals --------------
-    figure(2);
-    %-------------------M1-------------------
-    he(1) = subplot(2,3,1);
-    plot(net_data(:,7),'.k');hold on;
-    plot(net_data(:,8), '.b');
-    title('M1 errors');
-    legend('Err w.r.t S1', 'Err w.r.t R1');
-    grid off;
-    %-------------------M2-------------------
-    he(2) = subplot(2,3,2);
-    plot(net_data(:,9), '.k'); hold on;
-    plot(net_data(:,10), '.b'); hold on;
-    plot(net_data(:,11), '.r');
-    title('M2 errors');
-    legend('Err w.r.t S2', 'Err w.r.t R1', 'Err w.r.t R2');
-    grid off;
-    %-------------------M3-------------------
-    he(3) = subplot(2,3,3);
-    plot(net_data(:,12), '.k'); hold on;
-    plot(net_data(:, 13), '.r');
-    title('M3 errors');
-    legend('Err w.r.t S3', 'Err w.r.t R2');
-    grid off;
-    %-------------------M4-------------------
-    he(4) = subplot(2,3,4);
-    plot(net_data(:,14), '.k'); hold on;
-    plot(net_data(:,15), '.r'); hold on;
-    plot(net_data(:, 16), '.g');
-    title('M4 errors');
-    legend('Err w.r.t S4', 'Err w.r.t R2', 'Err w.r.t R3');
-    grid off;
-    %-------------------M5-------------------
-    he(5) = subplot(2,3,5);
-    plot(net_data(:,17), '.k'); hold on;
-    plot(net_data(:, 18), '.g');
-    title('M5 errors');
-    legend('Err w.r.t S5', 'Err w.r.t R3');
-    grid off;
-    %-------------------M6-------------------
-    he(6) = subplot(2,3,6);
-    plot(net_data(:,19), '.k'); hold on;
-    plot(net_data(:, 20), '.g');
-    title('M6 errors');
-    legend('Err w.r.t S6', 'Err w.r.t R3');
-    grid off;
-    
-    linkaxes(he, 'x');
-    % -------------------------------------------
-    
     %--------------------------------------------------------------------------------------------------------
     fig2Handle = figure(3);
     set(fig2Handle, 'Position', [100, 100, 600, 1000]);
@@ -761,12 +721,12 @@ if(visualization_on==1)
     % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,8))
     % ylabel('Map 1 error to R1')
     % xlabel('Data points')
-    % grid off
+    % grid on
     % subplot(2,1,2);
     % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,10));
     % ylabel('Map 2 error to R1');
     % xlabel('Data points');
-    % grid off
+    % grid on
     % %--------------------------------------------------------------------------------------------------------
     % % second relationship between M2, M3 and M4
     % figure(6);
@@ -774,17 +734,17 @@ if(visualization_on==1)
     % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,11))
     % ylabel('Map 2 error to R2');
     % xlabel('Data points');
-    % grid off;
+    % grid on;
     % subplot(3,1,2)
     % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,13))
     % ylabel('Map 3 error to R2');
     % xlabel('Data points');
-    % grid off;
+    % grid on;
     % subplot(3,1,3)
     % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,15))
     % ylabel('Map 4 error to R2');
     % xlabel('Data points');
-    % grid off;
+    % grid on;
     % %--------------------------------------------------------------------------------------------------------
     % % third relationship between M4, M5, M6
     % figure(7);
@@ -792,17 +752,17 @@ if(visualization_on==1)
     % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,16))
     % ylabel('Map 4 error to R3')
     % xlabel('Data points')
-    % grid off
+    % grid on
     % subplot(3,1,2)
     % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,18))
     % ylabel('Map 5 error to R3')
     % xlabel('Data points')
-    % grid off
+    % grid on
     % subplot(3,1,3)
     % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,20))
     % ylabel('Map 6 error to R3')
     % xlabel('Data points')
-    % grid off
+    % grid on
     
     %--------------------------------------------------------------------------------------------------------
     % analize the first relationship R1: M2 = 3*M1
@@ -812,7 +772,7 @@ if(visualization_on==1)
     hold on;
     plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,2),'--b');
     title('The dependency between M1 and M2');
-    grid off;
+    grid on;
     legend('3*M1 data', 'M2 data');
     xlabel('Data points');
     
@@ -861,7 +821,7 @@ if(visualization_on==1)
     plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,3), '--b');
     title('The dependency between M2, M3, and M4');
     legend('M2*M4 data', 'M3 data');
-    grid off;
+    grid on;
     xlabel('Data points');
     
     [ax10] = axescheck(fusion_analyzer_data(:,20), fusion_analyzer_data(:,2).*fusion_analyzer_data(:,4));
@@ -909,7 +869,7 @@ if(visualization_on==1)
     plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,4),'--b');
     title('The dependency between M4, M5, and M6');
     legend('M5+2*M6 data', 'M4 data');
-    grid off;
+    grid on;
     xlabel('Data points');
     
     [ax12] = axescheck(fusion_analyzer_data(:,20), fusion_analyzer_data(:,5)+ 2*fusion_analyzer_data(:,6));
@@ -955,7 +915,7 @@ figure(11);
 heta1 = subplot(2,3,1);
 plot(fusion_analyzer_data(:, 22), '.k'); hold on;
 plot(fusion_analyzer_data(:, 23), '.r');
-grid off;
+grid on;
 legend('Lrate w.r.t S1','Lrate w.r.t. R1');
 title('Learning rate analysis');
 % ------------------m1-----------------
@@ -963,28 +923,28 @@ heta2 = subplot(2,3,2);
 plot(fusion_analyzer_data(:, 24), '.k'); hold on;
 plot(fusion_analyzer_data(:, 25), '.r'); hold on;
 plot(fusion_analyzer_data(:, 26), '.b');
-grid off; legend('Lrate w.r.t S2','Lrate w.r.t. R1', 'Lrate w.r.t. R2');
+grid on; legend('Lrate w.r.t S2','Lrate w.r.t. R1', 'Lrate w.r.t. R2');
 % ------------------m1-----------------
 heta3 = subplot(2,3,3);
 plot(fusion_analyzer_data(:, 27), '.k'); hold on;
 plot(fusion_analyzer_data(:, 28), '.b');
-grid off; legend('Lrate w.r.t S3','Lrate w.r.t. R2');
+grid on; legend('Lrate w.r.t S3','Lrate w.r.t. R2');
 % ------------------m1-----------------
 heta4 = subplot(2,3,4);
 plot(fusion_analyzer_data(:, 29), '.k'); hold on;
 plot(fusion_analyzer_data(:, 30), '.b'); hold on;
 plot(fusion_analyzer_data(:, 31), '.g');
-grid off; legend('Lrate w.r.t S4','Lrate w.r.t. R2', 'Lrate w.r.t. R3');
+grid on; legend('Lrate w.r.t S4','Lrate w.r.t. R2', 'Lrate w.r.t. R3');
 % ------------------m1-----------------
 heta5 = subplot(2,3,5);
 plot(fusion_analyzer_data(:, 32), '.k'); hold on;
 plot(fusion_analyzer_data(:, 33), '.g');
-grid off; legend('Lrate w.r.t S5','Lrate w.r.t. R3');
+grid on; legend('Lrate w.r.t S5','Lrate w.r.t. R3');
 % ------------------m1-----------------
 heta6 = subplot(2,3,6);
 plot(fusion_analyzer_data(:, 34), '.k'); hold on;
 plot(fusion_analyzer_data(:, 35), '.g');
-grid off; legend('Lrate w.r.t S6', 'Lrate w.r.t. R3');
+grid on; legend('Lrate w.r.t S6', 'Lrate w.r.t. R3');
 
 heta = [heta1 heta2 heta3 heta4 heta5 heta6];
 % link axes for analysis
