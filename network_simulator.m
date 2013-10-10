@@ -28,10 +28,10 @@ complex_learning_update = 'simple'; % {simple, complex}
 % params
 switch complex_learning_update
     case 'simple'
-        err_type = 'simple';            % {simple, squared}
+        err_type = 'none';
         type = 'decay';                 % {decay, divisive}
     case 'complex'
-        err_type = 'simple';            % {simple, squared}
+        err_type = 'squared';            % {squared}
         type = 'up-down-factor';        % {up-down-factor, min-max-factor}
 end
 
@@ -190,13 +190,7 @@ while(1)
         end                
     end
     
-            %% learning rates adaptation and clamping
-                    % compute the error gradients for simple / squared error for
-        % complex update rules
-        switch err_type
-            case 'simple'
-                
-                % --------errors--------
+                    % --------errors--------
                 % error computation for learning rate adaptation
                 % m1
                 if(sensor_connected(m1_id)==1)
@@ -231,45 +225,11 @@ while(1)
                 end
                 em6(2) = m6 - ((m4 - m5)/2);
                 
-                % ---------gradients----------
-                % gradient of errors for m1
-                if(sensor_connected(m1_id)==1)
-                    dem1(m1_links(1)) = -m1_sensor(net_iter);
-                end
-                dem1(m1_links(2)) = -m2/3;
-                
-                % gradient of errors for m2
-                if(sensor_connected(m2_id)==1)
-                    dem2(m2_links(1)) = -m2_sensor(net_iter);
-                end
-                dem2(m2_links(2)) = -3*m1;
-                dem2(m2_links(3)) = -m3/m4;
-                
-                % gradient of errors for m3
-                if(sensor_connected(m3_id)==1)
-                    dem3(m3_links(1)) = -m3_sensor(net_iter);
-                end
-                dem3(m3_links(2)) = -m2*m4;
-                
-                % gradient of errors for m4
-                if(sensor_connected(m4_id)==1)
-                    dem4(m4_links(1)) = -m4_sensor(net_iter);
-                end
-                dem4(m4_links(2)) = -m3/m2;
-                dem4(m4_links(3)) = -(m5+2*m6);
-                
-                % gradient of errors for m5
-                if(sensor_connected(m5_id)==1)
-                    dem5(m5_links(1)) = -m5_sensor(net_iter);
-                end
-                dem5(m5_links(2)) = -(m4-2*m6);
-                
-                % gradient of errors for m6
-                if(sensor_connected(m6_id)==1)
-                    dem6(m6_links(1)) = -m6_sensor(net_iter);
-                end
-                dem6(m6_links(2)) = -((m4-m5)/2);
-                
+            %% learning rates adaptation and clamping
+                    % compute the error gradients for simple / squared error for
+        % complex update rules
+        switch err_type
+              
             case 'squared'
                 
                 % -----------errors------------
