@@ -1,4 +1,4 @@
-function l = update_learning_rate_complex(l_old, err, grad_bar_old, derr, derr_old, u, d, l_min, l_max, k, gama, type)
+function l = update_learning_rate_complex(l_old, grad_bar_old, derr, derr_old, u, d, l_min, l_max, k, gama, type)
 switch type
     case 'up-down-factor'
         if(derr*derr_old > 0)
@@ -17,12 +17,6 @@ switch type
             else
                 l = l_old;
             end
-        end
-    case 'geometric-accel'
-        if(derr~=0)
-            l = err/(derr)^2;
-        else
-            l = l_min;
         end
 end
 end

@@ -7,7 +7,7 @@ switch type
                 sum = sum + abs(err(k));
             end
         end
-        l = default_val*(((length(err)-1)*abs(err(idx)))/sum);
+        l = (sum/((length(err)-1)*abs(err(idx))));
     case 'decay'
         sum = 0;
         for k = 1:(length(err))
@@ -15,7 +15,7 @@ switch type
                 sum = sum + abs(err(k));
             end
         end
-        l = default_val*(((length(err)-1)*abs(err(idx)))/sum);
+        l = default_val*(sum/((length(err)-1)*abs(err(idx))));
         l = oldl + l;
 end
 end

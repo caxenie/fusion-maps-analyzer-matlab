@@ -14,21 +14,21 @@ run_steps          = 5000;
 show_step          = 1000;
 % runtime parameters
 run_iters          = run_steps - 1;
-run_iters_extended = run_iters*2;
+run_iters_extended = run_iters*2 + 1;
 % number of maps
 maps               = 6;
 % complex / simple learning rate flag
-learning_update_type = 'complex'; % {simple, complex}
+learning_update_type = 'simple'; % {simple, complex}
 % check learning rate adaptation rule
 switch learning_update_type
     case 'simple'
         % error type: simple difference
         % {decay, divisive}
-        type = 'decay';
+        type = 'divisive';
     case 'complex'
         % error type: squared difference
-        % {up-down-factor, delta-bar-delta, geometric-accel}
-        type = 'geometric-accel';
+        % {up-down-factor, delta-bar-delta}
+        type = 'delta-bar-delta';
 end
 % id of the current update rule
 rand_update_rule  = 1;
@@ -39,15 +39,15 @@ rules_ids         = 1:update_rules;
 % convergence steps counter
 convergence_steps = 2;
 % simulation points (sensor data is presented for half simulation)
-sim_points        = run_iters_extended;
+sim_points        = run_iters_extended - 1;
 %% Network elements setup
 % sensor values init - each sensor has it's own model
 m1_sensor = build_data_set(0.523, show_step, run_iters);
 m2_sensor = build_data_set(0.404, show_step, run_iters);
 m3_sensor = build_data_set(0.627, show_step, run_iters);
 m4_sensor = build_data_set(0.134, show_step, run_iters);
-m5_sensor = build_data_set(0.702, show_step, run_iters);
-m6_sensor = build_data_set(0.954, show_step, run_iters);
+m5_sensor = build_data_set(0.302, show_step, run_iters);
+m6_sensor = build_data_set(0.554, show_step, run_iters);
 
 % sensor connection state - (not)connected to net
 sensor_connected = ones(1, maps);
@@ -81,7 +81,7 @@ dem1_old = zeros(1, length(m1_links)); dem2_old = zeros(1, length(m2_links));
 dem3_old = zeros(1, length(m3_links)); dem4_old = zeros(1, length(m4_links));
 dem5_old = zeros(1, length(m5_links)); dem6_old = zeros(1, length(m6_links));
 
-% global error gradient history
+% global error gradient history all maps errors
 grad_e = zeros(run_iters_extended, 6);
 
 % delta-bar-delta learning rate adaptation
@@ -94,11 +94,11 @@ grad_bar3_old = zeros(1, length(m3_links)); grad_bar4_old = zeros(1, length(m4_l
 grad_bar5_old = zeros(1, length(m5_links)); grad_bar6_old = zeros(1, length(m6_links));
 
 % learning rates setup
-maps_nr = maps;
-sensors_nr = maps_nr;
-error_nr = update_rules;
-lrates_nr = update_rules;
-net_data = zeros(sim_points, maps_nr+error_nr+lrates_nr);
+maps_nr     = maps;
+sensors_nr  = maps_nr;
+error_nr    = update_rules;
+lrates_nr   = update_rules;
+net_data    = zeros(sim_points, maps_nr+error_nr+lrates_nr);
 
 % init learning rates and bounds
 ETA = 0.002;
@@ -121,11 +121,11 @@ etam6 = ETA*ones(sim_points, length(m6_links));
 
 while(1)
     % decouple the sensors to check net relaxation
-    if (convergence_steps == run_iters+1)
+    if (convergence_steps == run_iters + 1)
         sensor_connected = zeros(1, maps);
     end;
     % run the net to prove convergence after sensor decoupling
-    if (convergence_steps ==  run_iters_extended + 1)
+    if (convergence_steps == run_iters_extended + 1)
         break;
     end;
     
@@ -140,7 +140,6 @@ while(1)
     end
     
     %% go through current convergence step update sequence
-    
     if(strcmp(learning_update_type,'simple')==1)
         for i = 1:update_rules
             % pick a rule to update
@@ -229,7 +228,7 @@ while(1)
                     %% m2 updates
                 case 3
                     if(sensor_connected(m2_id)==1)
-                        m2 = (12*-etam2(convergence_steps-1, m2_links(1)))*m2 + 2*etam2(convergence_steps-1, m2_links(1))*...
+                        m2 = (1-2*etam2(convergence_steps-1, m2_links(1)))*m2 + 2*etam2(convergence_steps-1, m2_links(1))*...
                             m2_sensor(net_iter);
                     end
                 case 4
@@ -326,6 +325,7 @@ while(1)
                 etam1(convergence_steps, m1_links(k)) = update_learning_rate(etam1(convergence_steps-1, m1_links(k)), em1, m1_links(k), ETA, type);
                 etam1(convergence_steps, m1_links(k)) = clamp(etam1(convergence_steps, m1_links(k)), ETAH);
             end
+            
             for k=1:length(m2_links)
                 etam2(convergence_steps, m2_links(k)) = update_learning_rate(etam2(convergence_steps-1, m2_links(k)), em2, m2_links(k), ETA, type);
                 etam2(convergence_steps, m2_links(k)) = clamp(etam2(convergence_steps, m2_links(k)), ETAH);
@@ -423,29 +423,29 @@ while(1)
             dem6(m6_links(2)) = 2*(m4-(m5+2*m6))*(-2);
             
             % params init for min-max and up-down methods
-            u = 1.9;            % u > 1
-            d = 1/u;            % d < 1
-            l_min = ETA;
-            l_max = ETAH;
+            u       = 1.2;            % u > 1
+            d       = 1/u;            % d < 1
+            l_min   = ETA;
+            l_max   = ETAH;
             
             % delta-bar-delta params
-            beta = 0.04;         % 0 < beta < 1
-            k = 0.05;
-            gama = 0.4;
+            beta    = 0.04;         % 0 < beta < 1
+            k       = 0.05;
+            gama    = 0.4;
             
             % complex update rules for the learning rate
             for k=1:length(m1_links)
                 % bar grad
                 grad_bar1(k) = (1-beta)*dem1(k) + beta*grad_bar1_old(k);
                 % learning rates
-                etam1(convergence_steps, m1_links(k)) = update_learning_rate_complex(etam1(convergence_steps-1, m1_links(k)), em1(k), grad_bar1_old(k),  dem1(k), dem1_old(k), u, d, l_min, l_max, k, gama, type);
+                etam1(convergence_steps, m1_links(k)) = update_learning_rate_complex(etam1(convergence_steps-1, m1_links(k)),  grad_bar1_old(k),  dem1(k), dem1_old(k), u, d, l_min, l_max, k, gama, type);
                 etam1(convergence_steps, m1_links(k)) = clamp(etam1(convergence_steps, m1_links(k)), ETAH);
             end
             for k=1:length(m2_links)
                 % bar grad
                 grad_bar2(k) = (1-beta)*dem2(k) + beta*grad_bar2_old(k);
                 % learning rates
-                etam2(convergence_steps, m2_links(k)) = update_learning_rate_complex(etam2(convergence_steps-1, m2_links(k)), em2(k), grad_bar2_old(k),  dem2(k), dem2_old(k), u, d, l_min, l_max, k, gama, type);
+                etam2(convergence_steps, m2_links(k)) = update_learning_rate_complex(etam2(convergence_steps-1, m2_links(k)),  grad_bar2_old(k),  dem2(k), dem2_old(k), u, d, l_min, l_max, k, gama, type);
                 etam2(convergence_steps, m2_links(k)) = clamp(etam2(convergence_steps, m2_links(k)), ETAH);
             end
             
@@ -453,7 +453,7 @@ while(1)
                 % bar grad
                 grad_bar3(k) = (1-beta)*dem3(k) + beta*grad_bar3_old(k);
                 % learning rates
-                etam3(convergence_steps, m3_links(k)) = update_learning_rate_complex(etam3(convergence_steps-1, m3_links(k)), em3(k), grad_bar3_old(k),  dem3(k), dem3_old(k), u, d, l_min, l_max, k, gama, type);
+                etam3(convergence_steps, m3_links(k)) = update_learning_rate_complex(etam3(convergence_steps-1, m3_links(k)),  grad_bar3_old(k),  dem3(k), dem3_old(k), u, d, l_min, l_max, k, gama, type);
                 etam3(convergence_steps, m3_links(k)) = clamp(etam3(convergence_steps, m3_links(k)), ETAH);
             end
             
@@ -461,7 +461,7 @@ while(1)
                 % bar grad
                 grad_bar4(k) = (1-beta)*dem4(k) + beta*grad_bar4_old(k);
                 % learning rates
-                etam4(convergence_steps, m4_links(k)) = update_learning_rate_complex(etam4(convergence_steps-1, m4_links(k)), em4(k), grad_bar4_old(k),  dem4(k), dem4_old(k), u, d, l_min, l_max, k, gama, type);
+                etam4(convergence_steps, m4_links(k)) = update_learning_rate_complex(etam4(convergence_steps-1, m4_links(k)),  grad_bar4_old(k),  dem4(k), dem4_old(k), u, d, l_min, l_max, k, gama, type);
                 etam4(convergence_steps, m4_links(k)) = clamp(etam4(convergence_steps, m4_links(k)), ETAH);
             end
             
@@ -469,7 +469,7 @@ while(1)
                 % bar grad
                 grad_bar5(k) = (1-beta)*dem5(k) + beta*grad_bar5_old(k);
                 % learning rates
-                etam5(convergence_steps, m5_links(k)) = update_learning_rate_complex(etam5(convergence_steps-1, m5_links(k)), em5(k), grad_bar5_old(k), dem5(k), dem5_old(k), u, d, l_min, l_max, k, gama, type);
+                etam5(convergence_steps, m5_links(k)) = update_learning_rate_complex(etam5(convergence_steps-1, m5_links(k)), grad_bar5_old(k), dem5(k), dem5_old(k), u, d, l_min, l_max, k, gama, type);
                 etam5(convergence_steps, m5_links(k)) = clamp(etam5(convergence_steps, m5_links(k)), ETAH);
             end
             
@@ -477,7 +477,7 @@ while(1)
                 % bar grad
                 grad_bar6(k) = (1-beta)*dem6(k) + beta*grad_bar6_old(k);
                 % learning rates
-                etam6(convergence_steps, m6_links(k)) = update_learning_rate_complex(etam6(convergence_steps-1, m6_links(k)), em6(k), grad_bar6_old(k), dem6(k), dem6_old(k), u, d, l_min, l_max, k, gama, type);
+                etam6(convergence_steps, m6_links(k)) = update_learning_rate_complex(etam6(convergence_steps-1, m6_links(k)),  grad_bar6_old(k), dem6(k), dem6_old(k), u, d, l_min, l_max, k, gama, type);
                 etam6(convergence_steps, m6_links(k)) = clamp(etam6(convergence_steps, m6_links(k)), ETAH);
             end
             
@@ -511,56 +511,56 @@ while(1)
     
     %% WRITE DATA TO STRUCT
     % maps
-    net_data(convergence_steps, 1) = m1;
-    net_data(convergence_steps, 2) = m2;
-    net_data(convergence_steps, 3) = m3;
-    net_data(convergence_steps, 4) = m4;
-    net_data(convergence_steps, 5) = m5;
-    net_data(convergence_steps, 6) = m6;
+    net_data(convergence_steps-1, 1) = m1;
+    net_data(convergence_steps-1, 2) = m2;
+    net_data(convergence_steps-1, 3) = m3;
+    net_data(convergence_steps-1, 4) = m4;
+    net_data(convergence_steps-1, 5) = m5;
+    net_data(convergence_steps-1, 6) = m6;
     % error
-    net_data(convergence_steps, 7) = em1(1);
-    net_data(convergence_steps, 8) = em1(2);
+    net_data(convergence_steps-1, 7) = em1(1);
+    net_data(convergence_steps-1, 8) = em1(2);
     
-    net_data(convergence_steps, 9) = em2(1);
-    net_data(convergence_steps, 10) = em2(2);
-    net_data(convergence_steps, 11) = em2(3);
+    net_data(convergence_steps-1, 9) = em2(1);
+    net_data(convergence_steps-1, 10) = em2(2);
+    net_data(convergence_steps-1, 11) = em2(3);
     
-    net_data(convergence_steps, 12) = em3(1);
-    net_data(convergence_steps, 13) = em3(2);
+    net_data(convergence_steps-1, 12) = em3(1);
+    net_data(convergence_steps-1, 13) = em3(2);
     
-    net_data(convergence_steps, 14) = em4(1);
-    net_data(convergence_steps, 15) = em4(2);
-    net_data(convergence_steps, 16) = em4(3);
+    net_data(convergence_steps-1, 14) = em4(1);
+    net_data(convergence_steps-1, 15) = em4(2);
+    net_data(convergence_steps-1, 16) = em4(3);
     
-    net_data(convergence_steps, 17) = em5(1);
-    net_data(convergence_steps, 18) = em5(2);
+    net_data(convergence_steps-1, 17) = em5(1);
+    net_data(convergence_steps-1, 18) = em5(2);
     
-    net_data(convergence_steps, 19) = em6(1);
-    net_data(convergence_steps, 20) = em6(2);
+    net_data(convergence_steps-1, 19) = em6(1);
+    net_data(convergence_steps-1, 20) = em6(2);
     
     % sample idx
-    net_data(convergence_steps, 21) = convergence_steps;
+    net_data(convergence_steps-1, 21) = convergence_steps;
     
     % add the learning rates in the struct
-    net_data(convergence_steps, 22) = etam1(convergence_steps-1, m1_links(1));
-    net_data(convergence_steps, 23) = etam1(convergence_steps-1, m1_links(2));
+    net_data(convergence_steps-1, 22) = etam1(convergence_steps-1, m1_links(1));
+    net_data(convergence_steps-1, 23) = etam1(convergence_steps-1, m1_links(2));
     
-    net_data(convergence_steps, 24) = etam2(convergence_steps-1, m2_links(1));
-    net_data(convergence_steps, 25) = etam2(convergence_steps-1, m2_links(2));
-    net_data(convergence_steps, 26) = etam2(convergence_steps-1, m2_links(3));
+    net_data(convergence_steps-1, 24) = etam2(convergence_steps-1, m2_links(1));
+    net_data(convergence_steps-1, 25) = etam2(convergence_steps-1, m2_links(2));
+    net_data(convergence_steps-1, 26) = etam2(convergence_steps-1, m2_links(3));
     
-    net_data(convergence_steps, 27) = etam3(convergence_steps-1, m3_links(1));
-    net_data(convergence_steps, 28) = etam3(convergence_steps-1, m3_links(2));
+    net_data(convergence_steps-1, 27) = etam3(convergence_steps-1, m3_links(1));
+    net_data(convergence_steps-1, 28) = etam3(convergence_steps-1, m3_links(2));
     
-    net_data(convergence_steps, 29) = etam4(convergence_steps-1, m4_links(1));
-    net_data(convergence_steps, 30) = etam4(convergence_steps-1, m4_links(2));
-    net_data(convergence_steps, 31) = etam4(convergence_steps-1, m4_links(3));
+    net_data(convergence_steps-1, 29) = etam4(convergence_steps-1, m4_links(1));
+    net_data(convergence_steps-1, 30) = etam4(convergence_steps-1, m4_links(2));
+    net_data(convergence_steps-1, 31) = etam4(convergence_steps-1, m4_links(3));
     
-    net_data(convergence_steps, 32) = etam5(convergence_steps-1, m5_links(1));
-    net_data(convergence_steps, 33) = etam5(convergence_steps-1, m5_links(2));
+    net_data(convergence_steps-1, 32) = etam5(convergence_steps-1, m5_links(1));
+    net_data(convergence_steps-1, 33) = etam5(convergence_steps-1, m5_links(2));
     
-    net_data(convergence_steps, 34) = etam6(convergence_steps-1, m6_links(1));
-    net_data(convergence_steps, 35) = etam6(convergence_steps-1, m6_links(2));
+    net_data(convergence_steps-1, 34) = etam6(convergence_steps-1, m6_links(1));
+    net_data(convergence_steps-1, 35) = etam6(convergence_steps-1, m6_links(2));
     
     %% update indices
     net_iter = net_iter + 1;
@@ -573,57 +573,41 @@ fusion_analyzer_data = net_data;
 %% VISUALIZATION
 figure(1);
 % ---------------- R1 ----------------------
-hd(1) = subplot(4, 3, 1);
-plot(net_data(:, 1), '.b');
-grid on; title('M1 map values');
-
-hd(2) = subplot(4, 3, 4);
-plot(net_data(:, 2), '.b');
-grid on; title('M2 map values');
-
-hd(3) = subplot(4, 3, 7);
+hd(1) = subplot(2, 3, 1);
+plot(net_data(:, 1), '.b'); hold on;
 plot(m1_sensor, '.k');
-grid on; title('S1 sensor values');
+grid on; legend('M1 map', 'Sensor 1');
 
-hd(4) = subplot(4, 3, 10);
+hd(2) = subplot(2, 3, 2);
+plot(net_data(:, 2), '.b'); hold on;
 plot(m2_sensor, '.k');
-grid on; title('S2 sensor values');
+grid on; legend('M2 map','Sensor 2');
+
 % -------------------------------------------
 
 % ---------------- R2 ----------------------
-hd(5) = subplot(4, 3, 2);
-plot(net_data(:, 3), '.r');
-grid on; title('M3 map values');
-
-hd(6) = subplot(4, 3, 5);
-plot(net_data(:, 4), '.r');
-grid on; title('M4 map values');
-
-hd(7) = subplot(4, 3, 8);
+hd(5) = subplot(2, 3, 3);
+plot(net_data(:, 3), '.r'); hold on;
 plot(m3_sensor, '.k');
-grid on; title('S3 sensor values');
+grid on; legend('M3 map ', 'Sensor 3');
 
-hd(8) = subplot(4, 3, 11);
+hd(6) = subplot(2, 3, 4);
+plot(net_data(:, 4), '.r'); hold on;
 plot(m2_sensor, '.k');
-grid on; title('S4 sensor values');
+grid on; legend('M4 map', 'Sensor 4');
+
 % -------------------------------------------
 
 % ---------------- R3 ----------------------
-hd(9) = subplot(4, 3, 3);
-plot(net_data(:, 5), '.g');
-grid on; title('M5 map values');
-
-hd(10) = subplot(4, 3, 6);
-plot(net_data(:, 6), '.g');
-grid on; title('M6 map values');
-
-hd(11) = subplot(4, 3, 9);
+hd(9) = subplot(2, 3, 5);
+plot(net_data(:, 5), '.g'); hold on;
 plot(m5_sensor, '.k');
-grid on; title('S5 sensor values');
+grid on; legend('M5 map', 'Sensor 5');
 
-hd(12) = subplot(4, 3, 12);
+hd(10) = subplot(2, 3, 6);
+plot(net_data(:, 6), '.g'); hold on;
 plot(m6_sensor, '.k');
-grid on; title('S6 sensor values');
+grid on; legend('M6 map ', 'Sensor 6');
 
 % link axes
 linkaxes(hd, 'x');
@@ -1050,36 +1034,36 @@ end % visualization on flag
 % plot learning rates on a per map basis
 figure(11);
 % ------------------m1-----------------
-heta1 = subplot(2,3,1);
+heta1 = subplot(3,2,1);
 plot(fusion_analyzer_data(:, 22), '.k'); hold on;
 plot(fusion_analyzer_data(:, 23), '.r');
 grid on;
 legend('Lrate w.r.t S1','Lrate w.r.t. R1');
 title('Learning rate analysis');
 % ------------------m1-----------------
-heta2 = subplot(2,3,2);
+heta2 = subplot(3,2,2);
 plot(fusion_analyzer_data(:, 24), '.k'); hold on;
 plot(fusion_analyzer_data(:, 25), '.r'); hold on;
 plot(fusion_analyzer_data(:, 26), '.b');
 grid on; legend('Lrate w.r.t S2','Lrate w.r.t. R1', 'Lrate w.r.t. R2');
 % ------------------m1-----------------
-heta3 = subplot(2,3,3);
+heta3 = subplot(3,2,3);
 plot(fusion_analyzer_data(:, 27), '.k'); hold on;
 plot(fusion_analyzer_data(:, 28), '.b');
 grid on; legend('Lrate w.r.t S3','Lrate w.r.t. R2');
 % ------------------m1-----------------
-heta4 = subplot(2,3,4);
+heta4 = subplot(3,2,4);
 plot(fusion_analyzer_data(:, 29), '.k'); hold on;
 plot(fusion_analyzer_data(:, 30), '.b'); hold on;
 plot(fusion_analyzer_data(:, 31), '.g');
 grid on; legend('Lrate w.r.t S4','Lrate w.r.t. R2', 'Lrate w.r.t. R3');
 % ------------------m1-----------------
-heta5 = subplot(2,3,5);
+heta5 = subplot(3,2,5);
 plot(fusion_analyzer_data(:, 32), '.k'); hold on;
 plot(fusion_analyzer_data(:, 33), '.g');
 grid on; legend('Lrate w.r.t S5','Lrate w.r.t. R3');
 % ------------------m1-----------------
-heta6 = subplot(2,3,6);
+heta6 = subplot(3,2,6);
 plot(fusion_analyzer_data(:, 34), '.k'); hold on;
 plot(fusion_analyzer_data(:, 35), '.g');
 grid on; legend('Lrate w.r.t S6', 'Lrate w.r.t. R3');
