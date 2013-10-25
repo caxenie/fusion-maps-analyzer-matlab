@@ -1,5 +1,7 @@
 function l = update_learning_rate(oldl, err, idx, default_val, type)
 switch type
+    case 'fixed'
+        l = default_val;
     case 'divisive'
         sum = 0;
         for k = 1:(length(err))
