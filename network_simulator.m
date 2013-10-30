@@ -6,10 +6,8 @@ clc;
 
 %% INITIALIZATION
 %% Simulation parameters
-% enable or disable visualization
-dynamic_visualization_on = 0;
 % default values for learning rate
-ETA = 0.002;
+ETA  = 0.002;
 ETAH = 10*ETA;
 % iterations to present a data point to the net
 show_step          = 1000;
@@ -27,7 +25,7 @@ switch learning_update_type
     case 'simple'
         % error type: simple difference
         % {fixed, decay, divisive}
-        type = 'divisive';
+        type = 'adaptive';
     case 'complex'
         % error type: squared difference
         % {grad-history, grad-history-average}
@@ -51,17 +49,17 @@ m3_sensor = rand+zeros(1, run_iters);
 m4_sensor = rand+zeros(1, run_iters);
 
 %% input pattern of the sensors (TODO make it look nicer)
-increment = 0.001;
-switch1_s1 = 4000;
-switch2_s1 = 7000;
-switch1_s3 = 2000;
-switch2_s3 = 6000;
-switch1_s2 = 11000;
-switch2_s2 = 12000;
-switch3_s2 = 14000;
-switch1_s4 = 15000;
-switch2_s4 = 17000;
-switch3_s4 = 18000;
+increment = 0.0001;
+switch1_s1 = 3000;
+switch2_s1 = 5000;
+% switch1_s2 = 2000;
+% switch2_s2 = 6000;
+switch1_s3 = 10000;
+switch2_s3 = 12000;
+switch3_s3 = 13000;
+% switch1_s4 = 16000;
+% switch2_s4 = 17000;
+% switch3_s4 = 18000;
 % sensor 1
 for i=2:run_iters
     if(i<=switch1_s1)
@@ -71,39 +69,40 @@ for i=2:run_iters
         m1_sensor(i) = m1_sensor(i-1);
     end
 end
+% % sensor 2
+% for i=2:run_iters
+%     if(i<=switch1_s2)
+%         m2_sensor(i) = m2_sensor(i-1) + increment;
+%     end
+%     if(i>switch1_s2 && i<= switch2_s2)
+%         m2_sensor(i) = m2_sensor(i-1);
+%     end
+% end
 % sensor 3
 for i=2:run_iters
-    if(i<=switch1_s3)
+    if(i>=switch1_s3 && i<= switch2_s3)
         m3_sensor(i) = m3_sensor(i-1) + increment;
     end
-    if(i>switch1_s3 && i<= switch2_s3)
+    if(i>switch2_s3 && i<= switch3_s3)
         m3_sensor(i) = m3_sensor(i-1);
     end
 end
-% sensor 2
-for i=2:run_iters
-    if(i>=switch1_s2 && i<= switch2_s2)
-        m2_sensor(i) = m2_sensor(i-1) + increment;
-    end
-    if(i>switch2_s2 && i<= switch3_s2)
-        m2_sensor(i) = m2_sensor(i-1);
-    end
-end
 % sensor 4
-for i=2:run_iters
-    if(i>=switch1_s4 && i<=switch2_s4)
-        m4_sensor(i) = m4_sensor(i-1) + increment;
-    end
-    if(i>switch2_s4 && i<= switch3_s4)
-        m4_sensor(i) = m4_sensor(i-1);
-    end
-end
+% for i=2:run_iters
+%     if(i>=switch1_s4 && i<=switch2_s4)
+%         m4_sensor(i) = m4_sensor(i-1) + increment;
+%     end
+%     if(i>switch2_s4 && i<= switch3_s4)
+%         m4_sensor(i) = m4_sensor(i-1);
+%     end
+% end
 
-% sensor connection state - (not)connected to net
-sensor_connected = zeros(1, maps);
-% set which sensors are connected to the maps
-sensor_connected(1) = 1;
-sensor_connected(3) = 1;
+% add noise over the sensor signal
+% sigma = 0.0025; % noise standard deviation 
+% m1_sensor = m1_sensor + sigma*randn(size(m1_sensor));
+% m2_sensor = m2_sensor + sigma*randn(size(m2_sensor));
+% m3_sensor = m3_sensor + sigma*randn(size(m3_sensor));
+% m4_sensor = m4_sensor + sigma*randn(size(m4_sensor));
 
 % network iterator
 net_iter = 1;
@@ -130,7 +129,7 @@ dem1_old = zeros(1, length(m1_links)); dem2_old = zeros(1, length(m2_links));
 dem3_old = zeros(1, length(m3_links)); dem4_old = zeros(1, length(m4_links));
 
 % global error gradient history all maps errors
-grad_e = zeros(run_iters_extended, 6);
+grad_e = zeros(run_iters_extended, maps);
 
 % delta-bar-delta learning rate adaptation
 grad_bar1 = zeros(1, length(m1_links)); grad_bar2 = zeros(1, length(m2_links));
@@ -159,7 +158,7 @@ etam4 = ETA*ones(sim_points, length(m4_links));
 %   m2 = 3*m1
 %   m3 = m2*m4
 %
-%   clamp sensors on m1 and m4
+%   noticeable changes from baseline in m1 and m3
 %
 
 while(1)
@@ -282,6 +281,17 @@ while(1)
             em4(1) = m4 - m4_sensor(net_iter);
             em4(2) = m4 - m3/m2;
             
+            % get only the amplitude of the error
+            em1(1) = abs(em1(1));
+            em1(2) = abs(em1(2));
+            em2(1) = abs(em2(1));
+            em2(2) = abs(em2(2));
+            em2(3) = abs(em2(3));
+            em3(1) = abs(em3(1));
+            em3(2) = abs(em3(2));
+            em4(1) = abs(em4(1));
+            em4(2) = abs(em4(2));
+            
             % simple update rules for learning rate adaptation (divisive/decay)
             for k=1:length(m1_links)
                 etam1(convergence_steps, m1_links(k)) = update_learning_rate(etam1(convergence_steps-1, m1_links(k)), em1, m1_links(k), ETA, type);
@@ -343,9 +353,9 @@ while(1)
             l_max   = ETAH;
             
             % delta-bar-delta params
-            beta    = 0.04;         % 0 < beta < 1
-            k       = 0.05;
-            gama    = 0.4;
+            beta    = 0.004;         % 0 < beta < 1
+            k       = 0.005;
+            gama    = 0.04;
             
             % complex update rules for the learning rate
             for k=1:length(m1_links)
@@ -408,7 +418,7 @@ while(1)
     net_data(convergence_steps-1, 7) = em1(1);
     net_data(convergence_steps-1, 8) = em1(2);
     
-    net_data(convergence_steps-1, 9) = em2(1);
+    net_data(convergence_steps-1, 9)  = em2(1);
     net_data(convergence_steps-1, 10) = em2(2);
     net_data(convergence_steps-1, 11) = em2(3);
     
@@ -573,3 +583,48 @@ if(strcmp(learning_update_type,'complex')==1)
     
 end
 
+
+% plot the error profiles 
+figure
+% ----- m1 ------
+subplot(5, 2, 1);
+plot(net_data(:,8)./net_data(:,7), '.r');
+title('E_rel1/E_sensor');
+grid on;
+subplot(5, 2, 3);
+plot(net_data(:,7)./net_data(:,8), '.r');
+title('E_sensor/E_rel1');
+grid on;
+% ----- m2 ------
+subplot(5, 2, 2);
+plot((net_data(:,10) + net_data(:,11))./net_data(:,9), '.b');
+title('(E_rel1+E_rel2)/E_sensor');
+grid on;
+subplot(5, 2, 4);
+plot((net_data(:,9) + net_data(:,11))./net_data(:,10), '.b');
+title('(E_sensor+E_rel1)/E_rel1');
+grid on;
+subplot(5, 2, 6);
+plot((net_data(:,9) + net_data(:,10))./net_data(:,11), '.b');
+title('(E_sensor+E_rel2)/E_rel2');
+grid on;
+% ----- m3 ------
+subplot(5, 2, 7);
+plot(net_data(:,13)./net_data(:,12), '.g');
+title('E_rel2/E_sensor');
+grid on;
+subplot(5, 2, 9);
+plot(net_data(:,12)./net_data(:,13), '.g');
+title('E_sensor/E_rel2');
+grid on;
+% ----- m4 ------
+subplot(5, 2, 8);
+plot(net_data(:,15)./net_data(:,14), '.y');
+title('E_rel2/E_sensor');
+grid on;
+subplot(5, 2, 10);
+plot(net_data(:,14)./net_data(:,15), '.y');
+title('E_sensor/E_rel2');
+grid on;
+% set figure props
+set(gcf,'color','w');
