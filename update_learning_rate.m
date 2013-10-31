@@ -3,7 +3,7 @@ switch type
     case 'fixed'
         l = default_val;
     case 'adaptive'
-        u = 1.5;
+        u = 1.006;
         sum = 0;
         for k = 1:(length(err))
             if(k~=idx)
@@ -29,12 +29,11 @@ switch type
         l = default_val*(sum/((length(err)-1)*(err(idx))));   
     case 'decay'
         sum = 0;
-        for k = 1:(length(err))
+        for k = 1:(length(err)) 
             if(k~=idx)
                 sum = sum + (err(k));
             end
         end
-        l = default_val*(sum/((length(err)-1)*(err(idx))));
-        l = oldl + l;
+        l = oldl + default_val*(sum/((length(err)-1)*(err(idx))));   
 end
 end

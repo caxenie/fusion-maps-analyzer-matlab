@@ -5,12 +5,12 @@ switch type
             l = min(l_old*u, l_max);
         end
         if(derr*derr_old < 0)
-                l = max(l_old*d, l_min);
+            l = max(l_old*d, l_min);
         end
         if(derr*derr_old==0)
             l = l_old;
         end
-    case 'grad-history-avergae'
+    case 'grad-history-average'
         if(grad_bar_old*derr > 0)
             l = l_old + k;
         end
