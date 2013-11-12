@@ -1,4 +1,4 @@
-function l = update_learning_rate_complex(l_old, grad_bar_old, derr, derr_old, u, d, l_min, l_max, k, gama, type)
+function l = update_confidence_factor_complex(l_old, grad_bar_old, derr, derr_old, u, d, l_min, l_max, k, gama, type)
 switch type
     case 'grad-history'
         if(derr*derr_old > 0)

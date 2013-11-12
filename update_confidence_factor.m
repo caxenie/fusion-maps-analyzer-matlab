@@ -1,4 +1,4 @@
-function l = update_learning_rate(oldl, err, idx, default_val, type)
+function l = update_confidence_factor(oldl, err, idx, default_val, type)
 switch type
     case 'adaptive'
         u = 0.00000001;
