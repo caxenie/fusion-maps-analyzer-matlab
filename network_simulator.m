@@ -13,6 +13,10 @@ ETAH = 10*ETA;
 noise_on = 0;
 % comparative plots for confidence factor adaptation performance analysis
 comparative_view = 1;
+% this parameter activates the confidence adaptation for net running
+% {0,1} - {maps analysis, conf fct analysis}
+analysis_conf_fct = 0;
+
 % prepare sensor data to fed to the net
 run_steps          = 40000;
 % runtime parameters
@@ -21,13 +25,13 @@ run_iters_extended = run_iters + 1;
 % number of maps
 maps               = 4;
 % complex / simple confidence factor selector flag
-confidence_factor_type = 'complex'; % {simple, complex}
+confidence_factor_type = 'simple'; % {simple, complex}
 % check confidence factor adaptation rule
 switch confidence_factor_type
     case 'simple'
         % error type: simple difference
-        % {fixed, adaptive, decay, divisive}
-        type = 'adaptive';
+        % {fixed, incdec, decay, divisive}
+        type = 'fixed';
     case 'complex'
         % error type: squared difference
         % {grad-history, grad-history-average}
@@ -114,7 +118,7 @@ end
 net_iter = 1;
 
 % init maps and indices
-m1 = rand; m2 = rand; m3 = rand; m4 = rand;
+m1 = 0.92354; m2 = 0.2345; m3 = 0.54122; m4 = 0.45634;
 
 % maps ids
 m1_id = 1; m2_id = 2; m3_id = 3; m4_id = 4;
@@ -157,6 +161,10 @@ etam2 = ETA*ones(sim_points, length(m2_links));
 etam3 = ETA*ones(sim_points, length(m3_links));
 etam4 = ETA*ones(sim_points, length(m4_links));
 
+% check if comparative analysis si performed, otherwise run the net to get
+% the necessary datasets
+if(comparative_view==0)
+       
 %% NETWORK DYNAMICS
 %
 % encoded relationships
@@ -279,52 +287,93 @@ while(1)
             em4(1) = m4 - m4_sensor(net_iter);
             em4(2) = m4 - m3/m2;
             
-            % check if the update rules are using the divisive factor in
-            % their expression
-            if(strcmp(type, 'divisive')==1 || strcmp(type, 'decay')==1)
-                % simple update rules for confidence factor adaptation
-                for k=1:length(m1_links)
-                    etam1(convergence_steps, m1_links(k)) = update_confidence_factor(etam1(convergence_steps, m1_links(k)), em1, m1_links(k), ETA, type);
-                    etam1(convergence_steps, m1_links(k)) = clamp(etam1(convergence_steps, m1_links(k)), ETAH);
+            % simple update rules for confidence factor adaptation
+            % single step update is not valid as single step changes are
+            % not informative
+
+            if(analysis_conf_fct == 1)
+                if(strcmp(type, 'incdec')==1)
+                    
+                    for k=1:length(m1_links)
+                        etam1(convergence_steps+1, m1_links(k)) = update_confidence_factor(etam1(convergence_steps, m1_links(k)), em1, m1_links(k), ETA, type);
+                        etam1(convergence_steps+1, m1_links(k)) = clamp(etam1(convergence_steps+1, m1_links(k)), ETAH);
+                    end
+                    for k=1:length(m2_links)
+                        etam2(convergence_steps+1, m2_links(k)) = update_confidence_factor(etam2(convergence_steps, m2_links(k)), em2, m2_links(k), ETA, type);
+                        etam2(convergence_steps+1, m2_links(k)) = clamp(etam2(convergence_steps+1, m2_links(k)), ETAH);
+                    end
+                    for k=1:length(m3_links)
+                        etam3(convergence_steps+1, m3_links(k)) = update_confidence_factor(etam3(convergence_steps, m3_links(k)), em3, m3_links(k), ETA, type);
+                        etam3(convergence_steps+1, m3_links(k)) = clamp(etam3(convergence_steps+1, m3_links(k)), ETAH);
+                    end
+                    for k=1:length(m4_links)
+                        etam4(convergence_steps+1, m4_links(k)) = update_confidence_factor(etam4(convergence_steps, m4_links(k)), em4, m4_links(k), ETA, type);
+                        etam4(convergence_steps+1, m4_links(k)) = clamp(etam4(convergence_steps+1, m4_links(k)), ETAH);
+                    end
+                    
+                else
+                    
+                    for k=1:length(m1_links)
+                        etam1(convergence_steps, m1_links(k)) = update_confidence_factor(etam1(convergence_steps, m1_links(k)), em1, m1_links(k), ETA, type);
+                        etam1(convergence_steps, m1_links(k)) = clamp(etam1(convergence_steps, m1_links(k)), ETAH);
+                    end
+                    for k=1:length(m2_links)
+                        etam2(convergence_steps, m2_links(k)) = update_confidence_factor(etam2(convergence_steps, m2_links(k)), em2, m2_links(k), ETA, type);
+                        etam2(convergence_steps, m2_links(k)) = clamp(etam2(convergence_steps, m2_links(k)), ETAH);
+                    end
+                    for k=1:length(m3_links)
+                        etam3(convergence_steps, m3_links(k)) = update_confidence_factor(etam3(convergence_steps, m3_links(k)), em3, m3_links(k), ETA, type);
+                        etam3(convergence_steps, m3_links(k)) = clamp(etam3(convergence_steps, m3_links(k)), ETAH);
+                    end
+                    for k=1:length(m4_links)
+                        etam4(convergence_steps, m4_links(k)) = update_confidence_factor(etam4(convergence_steps, m4_links(k)), em4, m4_links(k), ETA, type);
+                        etam4(convergence_steps, m4_links(k)) = clamp(etam4(convergence_steps, m4_links(k)), ETAH);
+                    end
                 end
-                
-                for k=1:length(m2_links)
-                    etam2(convergence_steps, m2_links(k)) = update_confidence_factor(etam2(convergence_steps, m2_links(k)), em2, m2_links(k), ETA, type);
-                    etam2(convergence_steps, m2_links(k)) = clamp(etam2(convergence_steps, m2_links(k)), ETAH);
-                end
-                for k=1:length(m3_links)
-                    etam3(convergence_steps, m3_links(k)) = update_confidence_factor(etam3(convergence_steps, m3_links(k)), em3, m3_links(k), ETA, type);
-                    etam3(convergence_steps, m3_links(k)) = clamp(etam3(convergence_steps, m3_links(k)), ETAH);
-                end
-                for k=1:length(m4_links)
-                    etam4(convergence_steps, m4_links(k)) = update_confidence_factor(etam4(convergence_steps, m4_links(k)), em4, m4_links(k), ETA, type);
-                    etam4(convergence_steps, m4_links(k)) = clamp(etam4(convergence_steps, m4_links(k)), ETAH);
-                end
-                
-                
             else
                 
-                % simple update rules for confidence factor adaptation
-                for k=1:length(m1_links)
-                    etam1(convergence_steps+1, m1_links(k)) = update_confidence_factor(etam1(convergence_steps, m1_links(k)), em1, m1_links(k), ETA, type);
-                    etam1(convergence_steps+1, m1_links(k)) = clamp(etam1(convergence_steps+1, m1_links(k)), ETAH);
+                if(strcmp(type, 'incdec')==1)
+                    
+                    for k=1:length(m1_links)
+                        etam1(convergence_steps+1, m1_links(k)) = update_confidence_factor(etam1(convergence_steps, m1_links(k)), em1, m1_links(k), ETA, type);
+                        etam1(convergence_steps+1, m1_links(k)) = clamp(etam1(convergence_steps+1, m1_links(k)), ETAH);
+                    end
+                    for k=1:length(m2_links)
+                        etam2(convergence_steps+1, m2_links(k)) = update_confidence_factor(etam2(convergence_steps, m2_links(k)), em2, m2_links(k), ETA, type);
+                        etam2(convergence_steps+1, m2_links(k)) = clamp(etam2(convergence_steps+1, m2_links(k)), ETAH);
+                    end
+                    for k=1:length(m3_links)
+                        etam3(convergence_steps+1, m3_links(k)) = update_confidence_factor(etam3(convergence_steps, m3_links(k)), em3, m3_links(k), ETA, type);
+                        etam3(convergence_steps+1, m3_links(k)) = clamp(etam3(convergence_steps+1, m3_links(k)), ETAH);
+                    end
+                    for k=1:length(m4_links)
+                        etam4(convergence_steps+1, m4_links(k)) = update_confidence_factor(etam4(convergence_steps, m4_links(k)), em4, m4_links(k), ETA, type);
+                        etam4(convergence_steps+1, m4_links(k)) = clamp(etam4(convergence_steps+1, m4_links(k)), ETAH);
+                    end
+                    
+                else
+                    
+                if(mod(convergence_steps, 3) == 0)
+                    for k=1:length(m1_links)
+                        etam1(convergence_steps+1, m1_links(k)) = update_confidence_factor(etam1(convergence_steps, m1_links(k)), em1, m1_links(k), ETA, type);
+                        etam1(convergence_steps+1, m1_links(k)) = clamp(etam1(convergence_steps+1, m1_links(k)), ETAH);
+                    end
+                    for k=1:length(m2_links)
+                        etam2(convergence_steps+1, m2_links(k)) = update_confidence_factor(etam2(convergence_steps, m2_links(k)), em2, m2_links(k), ETA, type);
+                        etam2(convergence_steps+1, m2_links(k)) = clamp(etam2(convergence_steps+1, m2_links(k)), ETAH);
+                    end
+                    for k=1:length(m3_links)
+                        etam3(convergence_steps+1, m3_links(k)) = update_confidence_factor(etam3(convergence_steps, m3_links(k)), em3, m3_links(k), ETA, type);
+                        etam3(convergence_steps+1, m3_links(k)) = clamp(etam3(convergence_steps+1, m3_links(k)), ETAH);
+                    end
+                    for k=1:length(m4_links)
+                        etam4(convergence_steps+1, m4_links(k)) = update_confidence_factor(etam4(convergence_steps, m4_links(k)), em4, m4_links(k), ETA, type);
+                        etam4(convergence_steps+1, m4_links(k)) = clamp(etam4(convergence_steps+1, m4_links(k)), ETAH);
+                    end
                 end
-                
-                for k=1:length(m2_links)
-                    etam2(convergence_steps+1, m2_links(k)) = update_confidence_factor(etam2(convergence_steps, m2_links(k)), em2, m2_links(k), ETA, type);
-                    etam2(convergence_steps+1, m2_links(k)) = clamp(etam2(convergence_steps+1, m2_links(k)), ETAH);
                 end
-                for k=1:length(m3_links)
-                    etam3(convergence_steps+1, m3_links(k)) = update_confidence_factor(etam3(convergence_steps, m3_links(k)), em3, m3_links(k), ETA, type);
-                    etam3(convergence_steps+1, m3_links(k)) = clamp(etam3(convergence_steps+1, m3_links(k)), ETAH);
-                end
-                for k=1:length(m4_links)
-                    etam4(convergence_steps+1, m4_links(k)) = update_confidence_factor(etam4(convergence_steps, m4_links(k)), em4, m4_links(k), ETA, type);
-                    etam4(convergence_steps+1, m4_links(k)) = clamp(etam4(convergence_steps+1, m4_links(k)), ETAH);
-                end
-                
             end
-            
+
         case 'complex'
             % -----------errors------------
             % error computation for confidence factor adaptation (squared err)
@@ -371,7 +420,6 @@ while(1)
             k       = 0.004;
             gamma   = 0.8;
             
-            
             % complex update rules for the confidence factor
             for k=1:length(m1_links)
                 % bar grad
@@ -403,8 +451,7 @@ while(1)
                 etam4(convergence_steps+1, m4_links(k)) = update_confidence_factor_complex(etam4(convergence_steps, m4_links(k)),  grad_bar4_old(k),  dem4(k), dem4_old(k), u, d, l_min, l_max, k, gamma, type);
                 etam4(convergence_steps+1, m4_links(k)) = clamp(etam4(convergence_steps+1, m4_links(k)), ETAH);
             end
-            
-            
+
             % update indices
             dem1_old = dem1; dem2_old = dem2; dem3_old = dem3; dem4_old = dem4;
             grad_bar1_old = grad_bar1;
@@ -467,8 +514,13 @@ while(1)
 end
 
 % save data in file for comparative visualization
-dump_file_name = strcat('network_dataset_',type);
-save(dump_file_name, 'net_data');
+if(analysis_conf_fct==1)
+    dump_file_name = strcat('network_conf_anlz_dataset_',type);
+    save(dump_file_name, 'net_data');
+else
+    dump_file_name = strcat('network_dataset_',type);
+    save(dump_file_name, 'net_data');
+end
 
 % fill in the net simulation data into the visualization struct
 fusion_analyzer_data = net_data;
@@ -517,7 +569,6 @@ net_data(:,15) = abs(net_data(:,15));
 he(1) = subplot(2,2,1);
 plot(net_data(:,7),'.k');hold on;
 plot(net_data(:,8), '.m');
-title('M1 errors (abs)');
 legend('Err w.r.t S1', 'Err w.r.t R1');
 grid on;
 %-------------------M2-------------------
@@ -525,21 +576,18 @@ he(2) = subplot(2,2,2);
 plot(net_data(:,9), '.k'); hold on;
 plot(net_data(:,10), '.m'); hold on;
 plot(net_data(:,11), '.y');
-title('M2 errors (abs)');
 legend('Err w.r.t S2', 'Err w.r.t R1', 'Err w.r.t R2');
 grid on;
 %-------------------M3-------------------
 he(3) = subplot(2,2,3);
 plot(net_data(:,12), '.k'); hold on;
 plot(net_data(:, 13), '.y');
-title('M3 errors (abs)');
 legend('Err w.r.t S3', 'Err w.r.t R2');
 grid on;
 %-------------------M4-------------------
 he(4) = subplot(2,2,4);
 plot(net_data(:,14), '.k'); hold on;
 plot(net_data(:,15), '.y');
-title('M4 errors (abs)');
 legend('Err w.r.t S4', 'Err w.r.t R2');
 grid on;
 
@@ -551,70 +599,35 @@ set(gcf,'color','w');
 
 % plot confidence factors on a per map basis
 figure(3);
-if(strcmp(type, 'divisive')==1 || strcmp(type, 'decay')==1)
-    % ------------------m1-----------------
-    heta1 = subplot(2,2,1);
-    plot(fusion_analyzer_data(:, 22), '.k'); hold on;
-    plot(fusion_analyzer_data(:, 23), '.m');
-    grid on;
-    legend('Conf fct w.r.t S1','Conf fct w.r.t. R1');
-    title('confidence factor analysis');
-    % ------------------m2-----------------
-    heta2 = subplot(2,2,2);
-    plot(fusion_analyzer_data(:, 24), '.k'); hold on;
-    plot(fusion_analyzer_data(:, 25), '.m'); hold on;
-    plot(fusion_analyzer_data(:, 26), '.y');
-    grid on; legend('Conf fct w.r.t S2','Conf fct w.r.t. R1', 'Conf fct w.r.t. R2');
-    % ------------------m3-----------------
-    heta3 = subplot(2,2,3);
-    plot(fusion_analyzer_data(:, 27), '.k'); hold on;
-    plot(fusion_analyzer_data(:, 28), '.y');
-    grid on; legend('Conf fct w.r.t S3','Conf fct w.r.t. R2');
-    % ------------------m4-----------------
-    heta4 = subplot(2,2,4);
-    plot(fusion_analyzer_data(:, 29), '.k'); hold on;
-    plot(fusion_analyzer_data(:, 30), '.y');
-    grid on; legend('Conf fct w.r.t S4','Conf fct w.r.t. R2' );
-    
-    heta = [heta1 heta2 heta3 heta4];
-    % link axes for analysis
-    linkaxes(heta, 'x');
-    
-    % set figure props
-    set(gcf,'color','w');
-    
-else
-    % ------------------m1-----------------
-    heta1 = subplot(2,2,1);
-    plot(fusion_analyzer_data(:, 22), '.k'); hold on;
-    plot(fusion_analyzer_data(:, 23), '.m');
-    grid on;
-    legend('Conf fct w.r.t S1','Conf fct w.r.t. R1');
-    title('confidence factor analysis');
-    % ------------------m2-----------------
-    heta2 = subplot(2,2,2);
-    plot(fusion_analyzer_data(:, 24), '.k'); hold on;
-    plot(fusion_analyzer_data(:, 25), '.m'); hold on;
-    plot(fusion_analyzer_data(:, 26), '.y');
-    grid on; legend('Conf fct w.r.t S2','Conf fct w.r.t. R1', 'Conf fct w.r.t. R2');
-    % ------------------m3-----------------
-    heta3 = subplot(2,2,3);
-    plot(fusion_analyzer_data(:, 27), '.k'); hold on;
-    plot(fusion_analyzer_data(:, 28), '.y');
-    grid on; legend('Conf fct w.r.t S3','Conf fct w.r.t. R2');
-    % ------------------m4-----------------
-    heta4 = subplot(2,2,4);
-    plot(fusion_analyzer_data(:, 29), '.k'); hold on;
-    plot(fusion_analyzer_data(:, 30), '.y');
-    grid on; legend('Conf fct w.r.t S4','Conf fct w.r.t. R2' );
-    
-    heta = [heta1 heta2 heta3 heta4];
-    % link axes for analysis
-    linkaxes(heta, 'x');
-    
-    % set figure props
-    set(gcf,'color','w');
-end
+% ------------------m1-----------------
+heta1 = subplot(2,2,1);
+plot(fusion_analyzer_data(:, 22), '.k'); hold on;
+plot(fusion_analyzer_data(:, 23), '.m');
+grid on;
+legend('Conf fct w.r.t S1','Conf fct w.r.t. R1');
+% ------------------m2-----------------
+heta2 = subplot(2,2,2);
+plot(fusion_analyzer_data(:, 24), '.k'); hold on;
+plot(fusion_analyzer_data(:, 25), '.m'); hold on;
+plot(fusion_analyzer_data(:, 26), '.y');
+grid on; legend('Conf fct w.r.t S2','Conf fct w.r.t. R1', 'Conf fct w.r.t. R2');
+% ------------------m3-----------------
+heta3 = subplot(2,2,3);
+plot(fusion_analyzer_data(:, 27), '.k'); hold on;
+plot(fusion_analyzer_data(:, 28), '.y');
+grid on; legend('Conf fct w.r.t S3','Conf fct w.r.t. R2');
+% ------------------m4-----------------
+heta4 = subplot(2,2,4);
+plot(fusion_analyzer_data(:, 29), '.k'); hold on;
+plot(fusion_analyzer_data(:, 30), '.y');
+grid on; legend('Conf fct w.r.t S4','Conf fct w.r.t. R2' );
+
+heta = [heta1 heta2 heta3 heta4];
+% link axes for analysis
+linkaxes(heta, 'x');
+
+% set figure props
+set(gcf,'color','w');
 
 %% plot the error gradients
 if(strcmp(confidence_factor_type,'complex')==1)
@@ -696,41 +709,54 @@ grid on;
 set(gcf,'color','w');
 
 %% COMPARATIVE VISUALIZATION FOR CONFIDENCE FACTOR ADAPTATION ANALYSIS
-if(comparative_view==1)
+else
+        %check if datafiles exist
+    if(length(dir([pwd '/*.mat'])) ~= 10)
+        disp 'Please first run the net to acquire data. Comparative view flag should be 0.'
+        return;
+    end
+    
     if(strcmp(confidence_factor_type,'complex')==1)
         % load datasets
-        fixed = load('network_dataset_fixed.mat');
-        decay = load('network_dataset_decay.mat');
-        adaptive = load('network_dataset_adaptive.mat');
-        divisive = load('network_dataset_divisive.mat');
-        grad_hist = load('network_dataset_grad-history.mat');
-        
+        if(analysis_conf_fct==1)
+            fixed = load('network_dataset_fixed.mat');
+            decay = load('network_dataset_decay.mat');
+            incdec = load('network_dataset_incdec.mat');
+            divisive = load('network_dataset_divisive.mat');
+            grad_hist = load('network_dataset_grad-history.mat');
+        else
+            fixed = load('network_conf_anlz_dataset_fixed.mat');
+            decay = load('network_conf_anlz_dataset_decay.mat');
+            incdec = load('network_conf_anlz_dataset_incdec.mat');
+            divisive = load('network_conf_anlz_dataset_divisive.mat');
+            grad_hist = load('network_conf_anlz_dataset_grad-history.mat');
+        end
         % ---------m1----------
         figure;
         subplot(1,2,1);
         plot(abs(fixed.net_data(:,7)), '.r'); hold on;
         plot(abs(decay.net_data(:,7)),'.g'); hold on;
         plot(abs(divisive.net_data(:,7)),'.b'); hold on;
-        plot(abs(adaptive.net_data(:,7)),'.k'); hold on;
+        plot(abs(incdec.net_data(:,7)),'.k'); hold on;
         plot(abs(grad_hist.net_data(:,7)),'.m'); hold on;
         title('M1 Err (abs) w.r.t. S1');
         legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,7))))), ...
             strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,7))))), ...
             strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,7))))),...
-            strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,7))))),...
+            strcat('Incdec cf = ', sprintf('%1.5g',mean(abs(incdec.net_data(:,7))))),...
             strcat('Grad Hist cf = ', sprintf('%1.5g',sqrt(mean(abs(grad_hist.net_data(:,7))))))); % squared error for complex --> sqrt
         grid on;
         subplot(1,2,2);
         plot(abs(fixed.net_data(:,8)), '.r'); hold on;
         plot(abs(decay.net_data(:,8)),'.g'); hold on;
         plot(abs(divisive.net_data(:,8)),'.b'); hold on;
-        plot(abs(adaptive.net_data(:,8)),'.k'); hold on;
+        plot(abs(incdec.net_data(:,8)),'.k'); hold on;
         plot(abs(grad_hist.net_data(:,8)),'.m'); hold on;
         title('M2 Err (abs) w.r.t. R1');
         legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,8))))), ...
             strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,8))))), ...
             strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,8))))),...
-            strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,8))))),...
+            strcat('Incdec cf = ', sprintf('%1.5g',mean(abs(incdec.net_data(:,8))))),...
             strcat('Grad Hist cf = ', sprintf('%1.5g',sqrt(mean(abs(grad_hist.net_data(:,8))))))); % squared error for complex --> sqrt
         grid on;
         % set figure props
@@ -742,13 +768,13 @@ if(comparative_view==1)
         plot(abs(fixed.net_data(:,9)), '.r'); hold on;
         plot(abs(decay.net_data(:,9)),'.g'); hold on;
         plot(abs(divisive.net_data(:,9)),'.b'); hold on;
-        plot(abs(adaptive.net_data(:,9)),'.k'); hold on;
+        plot(abs(incdec.net_data(:,9)),'.k'); hold on;
         plot(abs(grad_hist.net_data(:,9)),'.m'); hold on;
         title('M2 Err (abs) w.r.t. S2');
         legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,9))))), ...
             strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,9))))), ...
             strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,9))))),...
-            strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,9))))),...
+            strcat('Incdec cf = ', sprintf('%1.5g',mean(abs(incdec.net_data(:,9))))),...
             strcat('Grad Hist cf = ', sprintf('%1.5g',sqrt(mean(abs(grad_hist.net_data(:,9))))))); % squared error for complex --> sqrt
         grid on;
         
@@ -756,13 +782,13 @@ if(comparative_view==1)
         plot(abs(fixed.net_data(:,10)), '.r'); hold on;
         plot(abs(decay.net_data(:,10)),'.g'); hold on;
         plot(abs(divisive.net_data(:,10)),'.b'); hold on;
-        plot(abs(adaptive.net_data(:,10)),'.k'); hold on;
+        plot(abs(incdec.net_data(:,10)),'.k'); hold on;
         plot(abs(grad_hist.net_data(:,10)),'.m'); hold on;
         title('M2 Err (abs) w.r.t. R1');
         legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,10))))), ...
             strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,10))))), ...
             strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,10))))),...
-            strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,10))))),...
+            strcat('Incdec cf = ', sprintf('%1.5g',mean(abs(incdec.net_data(:,10))))),...
             strcat('Grad Hist cf = ', sprintf('%1.5g',sqrt(mean(abs(grad_hist.net_data(:,10))))))); % squared error for complex --> sqrt
         grid on;
         
@@ -770,13 +796,13 @@ if(comparative_view==1)
         plot(abs(fixed.net_data(:,11)), '.r'); hold on;
         plot(abs(decay.net_data(:,11)),'.g'); hold on;
         plot(abs(divisive.net_data(:,11)),'.b'); hold on;
-        plot(abs(adaptive.net_data(:,11)),'.k'); hold on;
+        plot(abs(incdec.net_data(:,11)),'.k'); hold on;
         plot(abs(grad_hist.net_data(:,11)),'.m'); hold on;
         title('M2 Err (abs) w.r.t. R2');
         legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,11))))), ...
             strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,11))))), ...
             strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,11))))),...
-            strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,11))))),...
+            strcat('Incdec cf = ', sprintf('%1.5g',mean(abs(incdec.net_data(:,11))))),...
             strcat('Grad Hist cf = ', sprintf('%1.5g',sqrt(mean(abs(grad_hist.net_data(:,11))))))); % squared error for complex --> sqrt
         grid on;
         
@@ -789,26 +815,26 @@ if(comparative_view==1)
         plot(abs(fixed.net_data(:,12)), '.r'); hold on;
         plot(abs(decay.net_data(:,12)),'.g'); hold on;
         plot(abs(divisive.net_data(:,12)),'.b'); hold on;
-        plot(abs(adaptive.net_data(:,12)),'.k'); hold on;
+        plot(abs(incdec.net_data(:,12)),'.k'); hold on;
         plot(abs(grad_hist.net_data(:,12)),'.m'); hold on;
         title('M3 Err (abs) w.r.t. S3');
         legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,12))))), ...
             strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,12))))), ...
             strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,12))))),...
-            strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,12))))),...
+            strcat('Incdec cf = ', sprintf('%1.5g',mean(abs(incdec.net_data(:,12))))),...
             strcat('Grad Hist cf = ', sprintf('%1.5g',sqrt(mean(abs(grad_hist.net_data(:,12))))))); % squared error for complex --> sqrt
         grid on;
         subplot(1,2,2);
         plot(abs(fixed.net_data(:,13)), '.r'); hold on;
         plot(abs(decay.net_data(:,13)),'.g'); hold on;
         plot(abs(divisive.net_data(:,13)),'.b'); hold on;
-        plot(abs(adaptive.net_data(:,13)),'.k'); hold on;
+        plot(abs(incdec.net_data(:,13)),'.k'); hold on;
         plot(abs(grad_hist.net_data(:,13)),'.m'); hold on;
         title('M3 Err (abs) w.r.t. R2');
         legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,13))))), ...
             strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,13))))), ...
             strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,13))))),...
-            strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,13))))),...
+            strcat('Incdec cf = ', sprintf('%1.5g',mean(abs(incdec.net_data(:,13))))),...
             strcat('Grad Hist cf = ', sprintf('%1.5g',sqrt(mean(abs(grad_hist.net_data(:,13))))))); % squared error for complex --> sqrt
         grid on;
         % set figure props
@@ -820,26 +846,26 @@ if(comparative_view==1)
         plot(abs(fixed.net_data(:,14)), '.r'); hold on;
         plot(abs(decay.net_data(:,14)),'.g'); hold on;
         plot(abs(divisive.net_data(:,14)),'.b'); hold on;
-        plot(abs(adaptive.net_data(:,14)),'.k'); hold on;
+        plot(abs(incdec.net_data(:,14)),'.k'); hold on;
         plot(abs(grad_hist.net_data(:,14)),'.m'); hold on;
         title('M4 Err (abs) w.r.t. S4');
         legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,14))))), ...
             strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,14))))), ...
             strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,14))))),...
-            strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,14))))),...
+            strcat('Incdec cf = ', sprintf('%1.5g',mean(abs(incdec.net_data(:,14))))),...
             strcat('Grad Hist cf = ', sprintf('%1.5g',sqrt(mean(abs(grad_hist.net_data(:,14))))))); % squared error for complex --> sqrt
         grid on;
         subplot(1,2,2);
         plot(abs(fixed.net_data(:,15)), '.r'); hold on;
         plot(abs(decay.net_data(:,15)),'.g'); hold on;
         plot(abs(divisive.net_data(:,15)),'.b'); hold on;
-        plot(abs(adaptive.net_data(:,15)),'.k'); hold on;
+        plot(abs(incdec.net_data(:,15)),'.k'); hold on;
         plot(abs(grad_hist.net_data(:,15)),'.m'); hold on;
         title('M4 Err (abs) w.r.t. R2');
         legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,15))))), ...
             strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,15))))), ...
             strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,15))))),...
-            strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,15))))),...
+            strcat('Incdec cf = ', sprintf('%1.5g',mean(abs(incdec.net_data(:,15))))),...
             strcat('Grad Hist cf = ', sprintf('%1.5g',sqrt(mean(abs(grad_hist.net_data(:,15))))))); % squared error for complex --> sqrt
         grid on;
         % set figure props
@@ -849,7 +875,7 @@ if(comparative_view==1)
             % load datasets
             fixed = load('network_dataset_fixed.mat');
             decay = load('network_dataset_decay.mat');
-            adaptive = load('network_dataset_adaptive.mat');
+            incdec = load('network_dataset_incdec.mat');
             divisive = load('network_dataset_divisive.mat');
             
             % ---------m1----------
@@ -858,23 +884,23 @@ if(comparative_view==1)
             plot(abs(fixed.net_data(:,7)), '.r'); hold on;
             plot(abs(decay.net_data(:,7)),'.g'); hold on;
             plot(abs(divisive.net_data(:,7)),'.b'); hold on;
-            plot(abs(adaptive.net_data(:,7)),'.k'); hold on;
-            title('M1 Err (abs) w.r.t. S1');
-            legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,7))))), ...
-                strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,7))))), ...
-                strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,7))))),...
-                strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,7))))));
+            plot(abs(incdec.net_data(:,7)),'.k'); hold on;
+            title('M1 RMSE w.r.t. S1');
+            legend(strcat('Fixed cf = ', sprintf('%1.5g',sqrt((1/length(fixed.net_data(:,7)))*sum(fixed.net_data(:,7).^2)))), ...
+                strcat('Decay cf = ', sprintf('%1.5g',sqrt((1/length(decay.net_data(:,7)))*sum(decay.net_data(:,7).^2)))), ...
+                strcat('Divisive cf = ', sprintf('%1.5g',sqrt((1/length(divisive.net_data(:,7)))*sum(divisive.net_data(:,7).^2)))),...
+                strcat('Incdec cf = ', sprintf('%1.5g',sqrt((1/length(incdec.net_data(:,7)))*sum(incdec.net_data(:,7).^2)))));
             grid on;
             subplot(1,2,2);
             plot(abs(fixed.net_data(:,8)), '.r'); hold on;
             plot(abs(decay.net_data(:,8)),'.g'); hold on;
             plot(abs(divisive.net_data(:,8)),'.b'); hold on;
-            plot(abs(adaptive.net_data(:,8)),'.k'); hold on;
-            title('M2 Err (abs) w.r.t. R1');
-            legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,8))))), ...
-                strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,8))))), ...
-                strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,8))))),...
-                strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,8))))));
+            plot(abs(incdec.net_data(:,8)),'.k'); hold on;
+            title('M1 RMSE w.r.t. R1');
+            legend(strcat('Fixed cf = ', sprintf('%1.5g',sqrt((1/length(fixed.net_data(:,8)))*sum(fixed.net_data(:,8).^2)))), ...
+                strcat('Decay cf = ', sprintf('%1.5g',sqrt((1/length(decay.net_data(:,8)))*sum(decay.net_data(:,8).^2)))), ...
+                strcat('Divisive cf = ', sprintf('%1.5g',sqrt((1/length(divisive.net_data(:,8)))*sum(divisive.net_data(:,8).^2)))),...
+                strcat('Incdec cf = ', sprintf('%1.5g',sqrt((1/length(incdec.net_data(:,8)))*sum(incdec.net_data(:,8).^2)))));
             grid on;
             % set figure props
             set(gcf,'color','w');
@@ -885,36 +911,36 @@ if(comparative_view==1)
             plot(abs(fixed.net_data(:,9)), '.r'); hold on;
             plot(abs(decay.net_data(:,9)),'.g'); hold on;
             plot(abs(divisive.net_data(:,9)),'.b'); hold on;
-            plot(abs(adaptive.net_data(:,9)),'.k'); hold on;
-            title('M2 Err (abs) w.r.t. S2');
-            legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,9))))), ...
-                strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,9))))), ...
-                strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,9))))),...
-                strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,9))))));
+            plot(abs(incdec.net_data(:,9)),'.k'); hold on;
+            title('M2 RMSE w.r.t. S2');
+           legend(strcat('Fixed cf = ', sprintf('%1.5g',sqrt((1/length(fixed.net_data(:,9)))*sum(fixed.net_data(:,9).^2)))), ...
+                strcat('Decay cf = ', sprintf('%1.5g',sqrt((1/length(decay.net_data(:,9)))*sum(decay.net_data(:,9).^2)))), ...
+                strcat('Divisive cf = ', sprintf('%1.5g',sqrt((1/length(divisive.net_data(:,9)))*sum(divisive.net_data(:,9).^2)))),...
+                strcat('Incdec cf = ', sprintf('%1.5g',sqrt((1/length(incdec.net_data(:,9)))*sum(incdec.net_data(:,9).^2)))));
             grid on;
             
             subplot(1,3,2);
             plot(abs(fixed.net_data(:,10)), '.r'); hold on;
             plot(abs(decay.net_data(:,10)),'.g'); hold on;
             plot(abs(divisive.net_data(:,10)),'.b'); hold on;
-            plot(abs(adaptive.net_data(:,10)),'.k'); hold on;
-            title('M2 Err (abs) w.r.t. R1');
-            legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,10))))), ...
-                strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,10))))), ...
-                strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,10))))),...
-                strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,10))))));
+            plot(abs(incdec.net_data(:,10)),'.k'); hold on;
+            title('M2 RMSE w.r.t. R1');
+            legend(strcat('Fixed cf = ', sprintf('%1.5g',sqrt((1/length(fixed.net_data(:,10)))*sum(fixed.net_data(:,10).^2)))), ...
+                strcat('Decay cf = ', sprintf('%1.5g',sqrt((1/length(decay.net_data(:,10)))*sum(decay.net_data(:,10).^2)))), ...
+                strcat('Divisive cf = ', sprintf('%1.5g',sqrt((1/length(divisive.net_data(:,10)))*sum(divisive.net_data(:,10).^2)))),...
+                strcat('Incdec cf = ', sprintf('%1.5g',sqrt((1/length(incdec.net_data(:,10)))*sum(incdec.net_data(:,10).^2)))));
             grid on;
             
             subplot(1,3,3);
             plot(abs(fixed.net_data(:,11)), '.r'); hold on;
             plot(abs(decay.net_data(:,11)),'.g'); hold on;
             plot(abs(divisive.net_data(:,11)),'.b'); hold on;
-            plot(abs(adaptive.net_data(:,11)),'.k'); hold on;
-            title('M2 Err (abs) w.r.t. R2');
-            legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,11))))), ...
-                strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,11))))), ...
-                strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,11))))),...
-                strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,11))))));
+            plot(abs(incdec.net_data(:,11)),'.k'); hold on;
+            title('M2 RMSE w.r.t. R2');
+            legend(strcat('Fixed cf = ', sprintf('%1.5g',sqrt((1/length(fixed.net_data(:,11)))*sum(fixed.net_data(:,11).^2)))), ...
+                strcat('Decay cf = ', sprintf('%1.5g',sqrt((1/length(decay.net_data(:,11)))*sum(decay.net_data(:,11).^2)))), ...
+                strcat('Divisive cf = ', sprintf('%1.5g',sqrt((1/length(divisive.net_data(:,11)))*sum(divisive.net_data(:,11).^2)))),...
+                strcat('Incdec cf = ', sprintf('%1.5g',sqrt((1/length(incdec.net_data(:,11)))*sum(incdec.net_data(:,11).^2)))));
             grid on;
             
             % set figure props
@@ -926,23 +952,23 @@ if(comparative_view==1)
             plot(abs(fixed.net_data(:,12)), '.r'); hold on;
             plot(abs(decay.net_data(:,12)),'.g'); hold on;
             plot(abs(divisive.net_data(:,12)),'.b'); hold on;
-            plot(abs(adaptive.net_data(:,12)),'.k'); hold on;
-            title('M3 Err (abs) w.r.t. S3');
-            legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,12))))), ...
-                strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,12))))), ...
-                strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,12))))),...
-                strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,12))))));
+            plot(abs(incdec.net_data(:,12)),'.k'); hold on;
+            title('M3 RMSE w.r.t. S3');
+            legend(strcat('Fixed cf = ', sprintf('%1.5g',sqrt((1/length(fixed.net_data(:,12)))*sum(fixed.net_data(:,12).^2)))), ...
+                strcat('Decay cf = ', sprintf('%1.5g',sqrt((1/length(decay.net_data(:,12)))*sum(decay.net_data(:,12).^2)))), ...
+                strcat('Divisive cf = ', sprintf('%1.5g',sqrt((1/length(divisive.net_data(:,12)))*sum(divisive.net_data(:,12).^2)))),...
+                strcat('Incdec cf = ', sprintf('%1.5g',sqrt((1/length(incdec.net_data(:,12)))*sum(incdec.net_data(:,12).^2)))));
             grid on;
             subplot(1,2,2);
             plot(abs(fixed.net_data(:,13)), '.r'); hold on;
             plot(abs(decay.net_data(:,13)),'.g'); hold on;
             plot(abs(divisive.net_data(:,13)),'.b'); hold on;
-            plot(abs(adaptive.net_data(:,13)),'.k'); hold on;
-            title('M3 Err (abs) w.r.t. R2');
-            legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,13))))), ...
-                strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,13))))), ...
-                strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,13))))),...
-                strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,13))))));
+            plot(abs(incdec.net_data(:,13)),'.k'); hold on;
+            title('M3 RMSE w.r.t. R2');
+            legend(strcat('Fixed cf = ', sprintf('%1.5g',sqrt((1/length(fixed.net_data(:,13)))*sum(fixed.net_data(:,13).^2)))), ...
+                strcat('Decay cf = ', sprintf('%1.5g',sqrt((1/length(decay.net_data(:,13)))*sum(decay.net_data(:,13).^2)))), ...
+                strcat('Divisive cf = ', sprintf('%1.5g',sqrt((1/length(divisive.net_data(:,13)))*sum(divisive.net_data(:,13).^2)))),...
+                strcat('Incdec cf = ', sprintf('%1.5g',sqrt((1/length(incdec.net_data(:,13)))*sum(incdec.net_data(:,13).^2)))));
             grid on;
             % set figure props
             set(gcf,'color','w');
@@ -953,23 +979,23 @@ if(comparative_view==1)
             plot(abs(fixed.net_data(:,14)), '.r'); hold on;
             plot(abs(decay.net_data(:,14)),'.g'); hold on;
             plot(abs(divisive.net_data(:,14)),'.b'); hold on;
-            plot(abs(adaptive.net_data(:,14)),'.k'); hold on;
-            title('M4 Err (abs) w.r.t. S4');
-            legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,14))))), ...
-                strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,14))))), ...
-                strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,14))))),...
-                strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,14))))));
+            plot(abs(incdec.net_data(:,14)),'.k'); hold on;
+            title('M4 RMSE w.r.t. S4');
+            legend(strcat('Fixed cf = ', sprintf('%1.5g',sqrt((1/length(fixed.net_data(:,14)))*sum(fixed.net_data(:,14).^2)))), ...
+                strcat('Decay cf = ', sprintf('%1.5g',sqrt((1/length(decay.net_data(:,14)))*sum(decay.net_data(:,14).^2)))), ...
+                strcat('Divisive cf = ', sprintf('%1.5g',sqrt((1/length(divisive.net_data(:,14)))*sum(divisive.net_data(:,14).^2)))),...
+                strcat('Incdec cf = ', sprintf('%1.5g',sqrt((1/length(incdec.net_data(:,14)))*sum(incdec.net_data(:,14).^2)))));
             grid on;
             subplot(1,2,2);
             plot(abs(fixed.net_data(:,15)), '.r'); hold on;
             plot(abs(decay.net_data(:,15)),'.g'); hold on;
             plot(abs(divisive.net_data(:,15)),'.b'); hold on;
-            plot(abs(adaptive.net_data(:,15)),'.k'); hold on;
-            title('M4 Err (abs) w.r.t. R2');
-            legend(strcat('Fixed cf = ', sprintf('%1.5g',mean(abs(fixed.net_data(:,15))))), ...
-                strcat('Decay cf = ', sprintf('%1.5g',mean(abs(decay.net_data(:,15))))), ...
-                strcat('Divisive cf = ', sprintf('%1.5g',mean(abs(divisive.net_data(:,15))))),...
-                strcat('Adaptive cf = ', sprintf('%1.5g',mean(abs(adaptive.net_data(:,15))))));
+            plot(abs(incdec.net_data(:,15)),'.k'); hold on;
+            title('M4 RMSE w.r.t. R2');
+            legend(strcat('Fixed cf = ', sprintf('%1.5g',sqrt((1/length(fixed.net_data(:,15)))*sum(fixed.net_data(:,15).^2)))), ...
+                strcat('Decay cf = ', sprintf('%1.5g',sqrt((1/length(decay.net_data(:,15)))*sum(decay.net_data(:,15).^2)))), ...
+                strcat('Divisive cf = ', sprintf('%1.5g',sqrt((1/length(divisive.net_data(:,15)))*sum(divisive.net_data(:,15).^2)))),...
+                strcat('Incdec cf = ', sprintf('%1.5g',sqrt((1/length(incdec.net_data(:,15)))*sum(incdec.net_data(:,15).^2)))));
             grid on;
             % set figure props
             set(gcf,'color','w');
