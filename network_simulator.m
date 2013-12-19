@@ -12,10 +12,10 @@ ETAH = 10*ETA;
 % add noise in the sensor signal
 noise_on = 0;
 % comparative plots for confidence factor adaptation performance analysis
-comparative_view = 1;
+comparative_view = 0;
 % this parameter activates the confidence adaptation for net running
 % {0,1} - {maps analysis, conf fct analysis}
-analysis_conf_fct = 0;
+analysis_conf_fct = 1;
 
 % prepare sensor data to fed to the net
 run_steps          = 40000;
@@ -31,7 +31,7 @@ switch confidence_factor_type
     case 'simple'
         % error type: simple difference
         % {fixed, incdec, decay, divisive}
-        type = 'fixed';
+        type = 'divisive';
     case 'complex'
         % error type: squared difference
         % {grad-history, grad-history-average}
@@ -469,6 +469,33 @@ while(1)
             grad_e(convergence_steps, 7) = dem3(2);
             grad_e(convergence_steps, 8) = dem4(1);
             grad_e(convergence_steps, 9) = dem4(2);
+    end
+    
+    % add function to penalize all the contributions from all sources with
+    % big errors and recompute the confidence next iteration
+    [eta_val1, src_id1] = max(etam1(convergence_steps, m1_links(:)));
+    for i = 1:length(m1_links)
+        if(i~=src_id1)
+            etam1(convergence_steps, m1_links(i)) = 0.0;
+        end
+    end
+    [eta_val2, src_id2] = max(etam2(convergence_steps, m2_links(:)));
+    for i = 1:length(m2_links)
+        if(i~=src_id2)
+            etam2(convergence_steps, m2_links(i)) = 0.0;
+        end
+    end
+    [eta_val3, src_id3] = max(etam3(convergence_steps, m3_links(:)));
+    for i = 1:length(m3_links)
+        if(i~=src_id3)
+            etam3(convergence_steps, m3_links(i)) = 0.0;
+        end
+    end
+    [eta_val4, src_id4] = max(etam4(convergence_steps, m4_links(:)));
+    for i = 1:length(m4_links)
+        if(i~=src_id4)
+            etam4(convergence_steps, m4_links(i)) = 0.0;
+        end
     end
     
     %% WRITE DATA TO STRUCT
