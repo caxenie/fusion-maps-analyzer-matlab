@@ -602,10 +602,10 @@ if(visualization_on==1)
         axis(ax1,[minx1 maxx1 miny1 maxy1])
     end
     title('Maps values during simulation');
-    ylabel('Map 1 values')
-    xlabel('Data points')
-    hc1 =  line('parent',ax1, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,1));
-    ha1 = line('parent',ax1,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
+    ylabel('Map 1 values');
+     
+    hc1 =  animatedline('parent',ax1, 'LineStyle','-','LineWidth', 2.0);
+    ha1 = animatedline('parent',ax1,'LineStyle','-','LineWidth', 2.0);
     %-------------------------
     subplot(3,1,2)
     % axis control and adjustment
@@ -620,8 +620,8 @@ if(visualization_on==1)
     end
     ylabel('Map 2 values')
     xlabel('Data points')
-    hc2 =  line('parent',ax2,'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,2));
-    ha2 = line('parent',ax2,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
+    hc2 =  animatedline('parent',ax2,'LineStyle','-','LineWidth', 2.0);
+    ha2 = animatedline('parent',ax2,'LineStyle','-','LineWidth', 2.0);
     %-------------------------
     subplot(3,1,3)
     % axis control and adjustment
@@ -638,23 +638,22 @@ if(visualization_on==1)
     plot(t, 3*t, '-m');
     set(ax3,'XGrid','on');
     set(ax3,'YGrid','on');
-    hc3 =  line('parent',ax3,'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,1),'ydata',fusion_analyzer_data(1,2));
-    ha3 = line('parent',ax3,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
+    hc3 =  animatedline('parent',ax3,'LineStyle','-','LineWidth', 2.0);
+    ha3 = animatedline('parent',ax3,'LineStyle','-','LineWidth', 2.0);
     title('M2 dependency on M1');
     xlabel('M1 values');
     ylabel('M2 values');
     % dynamic plot simulataneously in all subplots
     for i=2:length(fusion_analyzer_data(:,20))
         j = i-1:i;
-        set(hc1,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,1));
-        set(ha1,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,1));
-        set(hc2,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,2));
-        set(ha2,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,2));
-        set(hc3,'xdata', fusion_analyzer_data(i,1), 'ydata', fusion_analyzer_data(i,2));
-        set(ha3,'xdata', fusion_analyzer_data(j,1), 'ydata', fusion_analyzer_data(j,2));
-        drawnow;
+        addpoints(hc1, fusion_analyzer_data(i,20),  fusion_analyzer_data(i,1));
+        addpoints(ha1, fusion_analyzer_data(j,20),  fusion_analyzer_data(j,1));
+        addpoints(hc2, fusion_analyzer_data(i,20),  fusion_analyzer_data(i,2));
+        addpoints(ha2, fusion_analyzer_data(j,20),  fusion_analyzer_data(j,2));
+        addpoints(hc3, fusion_analyzer_data(i,1),  fusion_analyzer_data(i,2));
+        addpoints(ha3, fusion_analyzer_data(j,1),  fusion_analyzer_data(j,2));
+        drawnow update;
     end
-    
     %--------------------------------------------------------------------------------------------------------
     fig3Handle = figure(4);
     set(fig3Handle, 'Position', [900, 900, 600, 1200]);
@@ -670,8 +669,8 @@ if(visualization_on==1)
         axis(ax4,[minx4 maxx4 miny4 maxy4])
     end
     title('Maps values during simulation');
-    hc4 =  line('parent',ax4, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,3));
-    ha4 = line('parent',ax4,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
+    hc4 =  animatedline('parent',ax4, 'LineStyle','-','LineWidth', 2.0);
+    ha4 = animatedline('parent',ax4,'LineStyle','-','LineWidth', 2.0);
     ylabel('Map 3 values')
     xlabel('Data points')
     
@@ -687,8 +686,8 @@ if(visualization_on==1)
         [miny5,maxy5] = minmax(fusion_analyzer_data(:,4));
         axis(ax5,[minx5 maxx5 miny5 maxy5])
     end
-    hc5 =  line('parent',ax5, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,4));
-    ha5 = line('parent',ax5,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
+    hc5 =  animatedline('parent',ax5, 'LineStyle','-','LineWidth', 2.0);
+    ha5 = animatedline('parent',ax5,'LineStyle','-','LineWidth', 2.0);
     ylabel('Map 4 values')
     xlabel('Data points')
     %-------------
@@ -703,8 +702,8 @@ if(visualization_on==1)
         [miny6,maxy6] = minmax(fusion_analyzer_data(:,5));
         axis(ax6,[minx6 maxx6 miny6 maxy6])
     end
-    hc6 = line('parent',ax6, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,5));
-    ha6 = line('parent',ax6,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
+    hc6 = animatedline('parent',ax6, 'LineStyle','-','LineWidth', 2.0);
+    ha6 = animatedline('parent',ax6,'LineStyle','-','LineWidth', 2.0);
     ylabel('Map 5 values')
     xlabel('Data points')
     %------------
@@ -719,74 +718,74 @@ if(visualization_on==1)
         [miny7,maxy7] = minmax(fusion_analyzer_data(:,6));
         axis(ax7,[minx7 maxx7 miny7 maxy7])
     end
-    hc7 =  line('parent',ax7, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,6));
-    ha7 = line('parent',ax7,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
+    hc7 =  animatedline('parent',ax7, 'LineStyle','-','LineWidth', 2.0);
+    ha7 = animatedline('parent',ax7,'LineStyle','-','LineWidth', 2.0);
     ylabel('Map 6 values')
     xlabel('Data points')
     % loop and dynamically shouw map convergence
     for i=2:length(fusion_analyzer_data(:,20))
         j = i-1:i;
-        set(hc4,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,3));
-        set(ha4,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,3));
-        set(hc5,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,4));
-        set(ha5,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,4));
-        set(hc6,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,5));
-        set(ha6,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,5));
-        set(hc7,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,6));
-        set(ha7,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,6));
+        addpoints(hc4, fusion_analyzer_data(i,20),  fusion_analyzer_data(i,3));
+        addpoints(ha4, fusion_analyzer_data(j,20),  fusion_analyzer_data(j,3));
+        addpoints(hc5, fusion_analyzer_data(i,20),  fusion_analyzer_data(i,4));
+        addpoints(ha5, fusion_analyzer_data(j,20),  fusion_analyzer_data(j,4));
+        addpoints(hc6, fusion_analyzer_data(i,20),  fusion_analyzer_data(i,5));
+        addpoints(ha6, fusion_analyzer_data(j,20),  fusion_analyzer_data(j,5));
+        addpoints(hc7, fusion_analyzer_data(i,20),  fusion_analyzer_data(i,6));
+        addpoints(ha7, fusion_analyzer_data(j,20),  fusion_analyzer_data(j,6));
         drawnow;
     end
     
-    % %--------------------------------------------------------------------------------------------------------
-    % % per relation errors
-    % % first relation between M1 and M2
-    % figure(5);
-    % subplot(2,1,1)
-    % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,8))
-    % ylabel('Map 1 error to R1')
-    % xlabel('Data points')
-    % grid on
-    % subplot(2,1,2);
-    % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,10));
-    % ylabel('Map 2 error to R1');
-    % xlabel('Data points');
-    % grid on
-    % %--------------------------------------------------------------------------------------------------------
-    % % second relationship between M2, M3 and M4
-    % figure(6);
-    % subplot(3,1,1)
-    % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,11))
-    % ylabel('Map 2 error to R2');
-    % xlabel('Data points');
-    % grid on;
-    % subplot(3,1,2)
-    % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,13))
-    % ylabel('Map 3 error to R2');
-    % xlabel('Data points');
-    % grid on;
-    % subplot(3,1,3)
-    % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,15))
-    % ylabel('Map 4 error to R2');
-    % xlabel('Data points');
-    % grid on;
-    % %--------------------------------------------------------------------------------------------------------
-    % % third relationship between M4, M5, M6
-    % figure(7);
-    % subplot(3,1,1)
-    % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,16))
-    % ylabel('Map 4 error to R3')
-    % xlabel('Data points')
-    % grid on
-    % subplot(3,1,2)
-    % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,18))
-    % ylabel('Map 5 error to R3')
-    % xlabel('Data points')
-    % grid on
-    % subplot(3,1,3)
-    % plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,20))
-    % ylabel('Map 6 error to R3')
-    % xlabel('Data points')
-    % grid on
+    %--------------------------------------------------------------------------------------------------------
+    % per relation errors
+    % first relation between M1 and M2
+    figure(5);
+    subplot(2,1,1)
+    plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,8))
+    ylabel('Map 1 error to R1')
+    xlabel('Data points')
+    grid on
+    subplot(2,1,2);
+    plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,10));
+    ylabel('Map 2 error to R1');
+     
+    grid on
+    %--------------------------------------------------------------------------------------------------------
+    % second relationship between M2, M3 and M4
+    figure(6);
+    subplot(3,1,1)
+    plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,11))
+    ylabel('Map 2 error to R2');
+     
+    grid on;
+    subplot(3,1,2)
+    plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,13))
+    ylabel('Map 3 error to R2');
+     
+    grid on;
+    subplot(3,1,3)
+    plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,15))
+    ylabel('Map 4 error to R2');
+     
+    grid on;
+    %--------------------------------------------------------------------------------------------------------
+    % third relationship between M4, M5, M6
+    figure(7);
+    subplot(3,1,1)
+    plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,16))
+    ylabel('Map 4 error to R3')
+    xlabel('Data points')
+    grid on
+    subplot(3,1,2)
+    plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,18))
+    ylabel('Map 5 error to R3')
+    xlabel('Data points')
+    grid on
+    subplot(3,1,3)
+    plot(fusion_analyzer_data(:,20), fusion_analyzer_data(:,20))
+    ylabel('Map 6 error to R3')
+    xlabel('Data points')
+    grid on
     
     %--------------------------------------------------------------------------------------------------------
     % analize the first relationship R1: M2 = 3*M1
@@ -798,7 +797,7 @@ if(visualization_on==1)
     title('The dependency between M1 and M2');
     grid on;
     legend('3*M1 data', 'M2 data');
-    xlabel('Data points');
+     
     
     [ax8] = axescheck(fusion_analyzer_data(:,20), 3*fusion_analyzer_data(:,1));
     ax8 = newplot(ax8);
@@ -809,8 +808,8 @@ if(visualization_on==1)
         [miny8,maxy8] = minmax(3*fusion_analyzer_data(:,1));
         axis(ax8,[minx8 maxx8 miny8 maxy8])
     end
-    hc8 = line('parent',ax8, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',3*fusion_analyzer_data(1,1));
-    ha8 = line('parent',ax8,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
+    hc8 = animatedline('parent',ax8, 'LineStyle','-','LineWidth', 2.0);
+    ha8 = animatedline('parent',ax8,'LineStyle','-','LineWidth', 2.0);
     
     %------------
     % axis control and adjustment
@@ -823,17 +822,17 @@ if(visualization_on==1)
         [miny9,maxy9] = minmax(fusion_analyzer_data(:,2));
         axis(ax9,[minx9 maxx9 miny9 maxy9])
     end
-    hc9 =  line('parent',ax9, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,2));
-    ha9 = line('parent',ax9,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
+    hc9 =  animatedline('parent',ax9, 'LineStyle','-','LineWidth', 2.0);
+    ha9 = animatedline('parent',ax9,'LineStyle','-','LineWidth', 2.0);
     
     % loop and dynamically shouw map convergence
     for i=2:length(fusion_analyzer_data(:,20))
         j = i-1:i;
-        set(hc8,'xdata', fusion_analyzer_data(i,20), 'ydata', 3*fusion_analyzer_data(i,1));
-        set(ha8,'xdata', fusion_analyzer_data(j,20), 'ydata', 3*fusion_analyzer_data(j,1));
-        set(hc9,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,2));
-        set(ha9,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,2));
-        drawnow;
+        addpoints(hc8, fusion_analyzer_data(i,20),  3*fusion_analyzer_data(i,1));
+        addpoints(ha8, fusion_analyzer_data(j,20),  3*fusion_analyzer_data(j,1));
+        addpoints(hc9, fusion_analyzer_data(i,20),  fusion_analyzer_data(i,2));
+        addpoints(ha9, fusion_analyzer_data(j,20),  fusion_analyzer_data(j,2));
+        drawnow update;
     end
     
     %--------------------------------------------------------------------------------------------------------
@@ -846,7 +845,7 @@ if(visualization_on==1)
     title('The dependency between M2, M3, and M4');
     legend('M2*M4 data', 'M3 data');
     grid on;
-    xlabel('Data points');
+     
     
     [ax10] = axescheck(fusion_analyzer_data(:,20), fusion_analyzer_data(:,2).*fusion_analyzer_data(:,4));
     ax10 = newplot(ax10);
@@ -857,8 +856,8 @@ if(visualization_on==1)
         [miny10,maxx10] = minmax(fusion_analyzer_data(:,2).*fusion_analyzer_data(:,4));
         axis(ax10,[minx10 maxx10 miny10 maxy10])
     end
-    hc10 = line('parent',ax10, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,2).*fusion_analyzer_data(1,4));
-    ha10 = line('parent',ax10,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
+    hc10 = animatedline('parent',ax10, 'LineStyle','-','LineWidth', 2.0);
+    ha10 = animatedline('parent',ax10,'LineStyle','-','LineWidth', 2.0);
     
     %------------
     % axis control and adjustment
@@ -871,17 +870,17 @@ if(visualization_on==1)
         [miny11,maxy11] = minmax(fusion_analyzer_data(:,2));
         axis(ax11,[minx11 maxx11 miny11 maxy11])
     end
-    hc11 =  line('parent',ax11, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata', fusion_analyzer_data(1,3));
-    ha11 = line('parent',ax11,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
+    hc11 =  animatedline('parent',ax11, 'LineStyle','-','LineWidth', 2.0);
+    ha11 = animatedline('parent',ax11,'LineStyle','-','LineWidth', 2.0);
     
     % loop and dynamically shouw map convergence
     for i=2:length(fusion_analyzer_data(:,20))
         j = i-1:i;
-        set(hc10,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,2).*fusion_analyzer_data(i,4));
-        set(ha10,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,2).*fusion_analyzer_data(j,4));
-        set(hc11,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,3));
-        set(ha11,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,3));
-        drawnow;
+        addpoints(hc10, fusion_analyzer_data(i,20),  fusion_analyzer_data(i,2).*fusion_analyzer_data(i,4));
+        addpoints(ha10, fusion_analyzer_data(j,20),  fusion_analyzer_data(j,2).*fusion_analyzer_data(j,4));
+        addpoints(hc11, fusion_analyzer_data(i,20),  fusion_analyzer_data(i,3));
+        addpoints(ha11, fusion_analyzer_data(j,20),  fusion_analyzer_data(j,3));
+        drawnow update;
     end
     
     %--------------------------------------------------------------------------------------------------------
@@ -894,7 +893,7 @@ if(visualization_on==1)
     title('The dependency between M4, M5, and M6');
     legend('M5+2*M6 data', 'M4 data');
     grid on;
-    xlabel('Data points');
+     
     
     [ax12] = axescheck(fusion_analyzer_data(:,20), fusion_analyzer_data(:,5)+ 2*fusion_analyzer_data(:,6));
     ax12 = newplot(ax12);
@@ -905,8 +904,8 @@ if(visualization_on==1)
         [miny12,maxx12] = minmax(fusion_analyzer_data(:,5)+2*fusion_analyzer_data(:,6));
         axis(ax12,[minx12 maxx12 miny12 maxy12])
     end
-    hc12 = line('parent',ax12, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata',fusion_analyzer_data(1,5)+2*fusion_analyzer_data(1,6));
-    ha12 = line('parent',ax12,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
+    hc12 = animatedline('parent',ax12, 'LineStyle','-','LineWidth', 2.0);
+    ha12 = animatedline('parent',ax12,'LineStyle','-','LineWidth', 2.0);
     
     %------------
     % axis control and adjustment
@@ -919,17 +918,17 @@ if(visualization_on==1)
         [miny13,maxy13] = minmax(fusion_analyzer_data(:,4));
         axis(ax13,[minx13 maxx13 miny13 maxy13])
     end
-    hc13 =  line('parent',ax13, 'linestyle',':','LineWidth', 2.0,'erase','xor','xdata',fusion_analyzer_data(1,20),'ydata', fusion_analyzer_data(1,4));
-    ha13 = line('parent',ax13,'linestyle',':','LineWidth', 2.0,'erase','none','xdata',[],'ydata',[]);
+    hc13 =  animatedline('parent',ax13, 'LineStyle','-','LineWidth', 2.0);
+    ha13 = animatedline('parent',ax13,'LineStyle','-','LineWidth', 2.0);
     
     % loop and dynamically shouw map convergence
     for i=2:length(fusion_analyzer_data(:,20))
         j = i-1:i;
-        set(hc12,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,5)+2*fusion_analyzer_data(i,6));
-        set(ha12,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,5)+2*fusion_analyzer_data(j,6));
-        set(hc13,'xdata', fusion_analyzer_data(i,20), 'ydata', fusion_analyzer_data(i,4));
-        set(ha13,'xdata', fusion_analyzer_data(j,20), 'ydata', fusion_analyzer_data(j,4));
-        drawnow;
+        addpoints(hc12, fusion_analyzer_data(i,20),  fusion_analyzer_data(i,5)+2*fusion_analyzer_data(i,6));
+        addpoints(ha12, fusion_analyzer_data(j,20),  fusion_analyzer_data(j,5)+2*fusion_analyzer_data(j,6));
+        addpoints(hc13, fusion_analyzer_data(i,20),  fusion_analyzer_data(i,4));
+        addpoints(ha13, fusion_analyzer_data(j,20),  fusion_analyzer_data(j,4));
+        drawnow update;
     end
 end % visualization on flag
 
